@@ -133,43 +133,70 @@
 
         // Fetch image from URL and convert to File object
         async function fetchImageAsFile(imageUrl, index) {
+            console.log(`Fetching image ${index + 1}:`, imageUrl);
+
             try {
-                // Try to fetch with mode 'cors' first, fallback to 'no-cors' if needed
+                // Try to fetch the image
                 const response = await fetch(imageUrl, {
                     mode: 'cors',
-                    cache: 'no-cache'
+                    cache: 'no-cache',
+                    credentials: 'omit'
                 });
 
+                console.log(`Response status for image ${index + 1}:`, response.status, response.statusText);
+
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch image: ${response.statusText}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const blob = await response.blob();
+                console.log(`Blob received for image ${index + 1}:`, blob.size, 'bytes', blob.type);
+
+                if (blob.size === 0) {
+                    throw new Error('Received empty image data');
+                }
 
                 // Extract filename from URL params or use default
                 let filename = `image-${index + 1}.jpg`;
 
                 // Try to extract filename from URL
-                const urlObj = new URL(imageUrl);
-                const fileNameParam = urlObj.searchParams.get('fileName');
-                if (fileNameParam) {
-                    // Extract just the filename without path
-                    const parts = fileNameParam.split('/');
-                    filename = parts[parts.length - 1];
-                    // Decode URL encoding (e.g., %2F -> /)
-                    filename = decodeURIComponent(filename);
+                try {
+                    const urlObj = new URL(imageUrl);
+                    const fileNameParam = urlObj.searchParams.get('fileName');
+                    if (fileNameParam) {
+                        // Extract just the filename without path
+                        const parts = fileNameParam.split('/');
+                        filename = parts[parts.length - 1];
+                        // Decode URL encoding (e.g., %2F -> /)
+                        filename = decodeURIComponent(filename);
+                    }
+                } catch (urlError) {
+                    console.warn('Could not parse filename from URL:', urlError);
                 }
 
                 // Determine file type from blob or default to jpeg
-                const fileType = blob.type || 'image/jpeg';
+                let fileType = blob.type;
+                if (!fileType || fileType === 'application/octet-stream') {
+                    // Try to guess from filename extension
+                    const ext = filename.split('.').pop().toLowerCase();
+                    const mimeTypes = {
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'webp': 'image/webp'
+                    };
+                    fileType = mimeTypes[ext] || 'image/jpeg';
+                }
 
                 // Create File object from Blob
                 const file = new File([blob], filename, { type: fileType });
+                console.log(`Created file for image ${index + 1}:`, filename, fileType);
 
                 return file;
             } catch (error) {
-                console.error(`Error fetching image from ${imageUrl}:`, error);
-                throw new Error(`Failed to load image ${index + 1}: ${error.message}`);
+                console.error(`Error fetching image ${index + 1} from ${imageUrl}:`, error);
+                throw new Error(`Image ${index + 1}: ${error.message}`);
             }
         }
 
@@ -183,12 +210,22 @@
                     return;
                 }
 
+                console.log(`Found ${imageUrls.length} URLs to share`);
                 showMessage(`Loading ${imageUrls.length} image(s)...`, 'info');
 
                 // Fetch all images and convert to File objects
-                const imageFiles = await Promise.all(
-                    imageUrls.map((url, index) => fetchImageAsFile(url, index))
-                );
+                let imageFiles;
+                try {
+                    imageFiles = await Promise.all(
+                        imageUrls.map((url, index) => fetchImageAsFile(url, index))
+                    );
+                } catch (fetchError) {
+                    console.error('Fetch error:', fetchError);
+                    showMessage('Failed to load images: ' + fetchError.message, 'error');
+                    return;
+                }
+
+                console.log(`Successfully loaded ${imageFiles.length} images`);
 
                 // Data to share with images
                 const shareData = {
@@ -199,10 +236,12 @@
 
                 // Check if files can be shared
                 if (navigator.canShare && !navigator.canShare(shareData)) {
+                    console.error('Cannot share files:', shareData);
                     showMessage('Your browser cannot share files of this type', 'error');
                     return;
                 }
 
+                console.log('Triggering share dialog...');
                 // Trigger native share dialog
                 await navigator.share(shareData);
                 showMessage('Images shared successfully!', 'success');
