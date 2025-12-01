@@ -113,14 +113,23 @@
                 return [];
             }
 
-            // Split by comma and trim whitespace
-            return qParam.split(',').map(url => url.trim()).filter(url => url.length > 0);
+            // Split by comma (with optional surrounding spaces) and trim whitespace
+            // URLSearchParams.get() already decodes the parameter value
+            // We just need to split and clean up the individual URLs
+            return qParam
+                .split(/\s*,\s*/)  // Split by comma with optional whitespace
+                .map(url => url.trim())
+                .filter(url => url.length > 0 && url.startsWith('http'));  // Validate URLs
         }
 
         // Fetch image from URL and convert to File object
         async function fetchImageAsFile(imageUrl, index) {
             try {
-                const response = await fetch(imageUrl);
+                // Try to fetch with mode 'cors' first, fallback to 'no-cors' if needed
+                const response = await fetch(imageUrl, {
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -128,17 +137,30 @@
 
                 const blob = await response.blob();
 
-                // Extract filename from URL or use default
-                const urlParts = imageUrl.split('/');
-                const filename = urlParts[urlParts.length - 1] || `image-${index + 1}.jpg`;
+                // Extract filename from URL params or use default
+                let filename = `image-${index + 1}.jpg`;
+
+                // Try to extract filename from URL
+                const urlObj = new URL(imageUrl);
+                const fileNameParam = urlObj.searchParams.get('fileName');
+                if (fileNameParam) {
+                    // Extract just the filename without path
+                    const parts = fileNameParam.split('/');
+                    filename = parts[parts.length - 1];
+                    // Decode URL encoding (e.g., %2F -> /)
+                    filename = decodeURIComponent(filename);
+                }
+
+                // Determine file type from blob or default to jpeg
+                const fileType = blob.type || 'image/jpeg';
 
                 // Create File object from Blob
-                const file = new File([blob], filename, { type: blob.type });
+                const file = new File([blob], filename, { type: fileType });
 
                 return file;
             } catch (error) {
                 console.error(`Error fetching image from ${imageUrl}:`, error);
-                throw error;
+                throw new Error(`Failed to load image ${index + 1}: ${error.message}`);
             }
         }
 
