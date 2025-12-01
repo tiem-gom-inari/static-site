@@ -106,20 +106,29 @@
 
         // Parse URL query parameter to get image URLs
         function getImageUrlsFromQuery() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const qParam = urlParams.get('q');
+            // Get the full query string after '?q='
+            const fullUrl = window.location.href;
+            const qIndex = fullUrl.indexOf('?q=');
 
-            if (!qParam) {
+            if (qIndex === -1) {
                 return [];
             }
 
+            // Get everything after '?q='
+            const qParam = fullUrl.substring(qIndex + 3);  // +3 to skip '?q='
+
+            // Decode the parameter value
+            const decodedParam = decodeURIComponent(qParam);
+
             // Split by comma (with optional surrounding spaces) and trim whitespace
-            // URLSearchParams.get() already decodes the parameter value
-            // We just need to split and clean up the individual URLs
-            return qParam
+            // The URLs should be properly separated by commas in the original link
+            const urls = decodedParam
                 .split(/\s*,\s*/)  // Split by comma with optional whitespace
                 .map(url => url.trim())
                 .filter(url => url.length > 0 && url.startsWith('http'));  // Validate URLs
+
+            console.log('Parsed URLs:', urls);
+            return urls;
         }
 
         // Fetch image from URL and convert to File object
