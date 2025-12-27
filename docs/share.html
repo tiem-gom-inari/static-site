@@ -130,16 +130,7 @@
             const params = new URLSearchParams(window.location.search);
             const m = params.get('m');
             return m ? decodeURIComponent(m) : '';
-        }
-        
-        function formatShareMessage(rawText) {
-            if (!rawText) return '';
-        
-            return rawText
-                .replace(/ • /g, '\n• ')
-                .replace(/ - /g, '\n- ')
-                .trim();
-        }        
+        }     
 
         // Parse URL query parameter to get image URLs
         function getImageUrlsFromQuery() {
@@ -172,9 +163,8 @@
             if (!previewEl) return;
         
             const raw = getMessageFromQuery();
-            const formatted = formatShareMessage(raw);
         
-            previewEl.textContent = formatted || '(No share text)';
+            previewEl.textContent = raw || '(No share text)';
         }
 
         // Fetch image from URL and convert to File object
