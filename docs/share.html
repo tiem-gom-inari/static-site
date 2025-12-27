@@ -107,6 +107,36 @@
             white-space: pre-wrap;
             color: #333;
         }
+        .preview-images {
+          margin-top: 16px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+        
+        .preview-images img {
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          object-fit: cover;
+          border-radius: 10px;
+          border: 1px solid #eee;
+          background: #f5f5f5;
+        }
+        
+        .preview-images .img-wrap {
+          position: relative;
+        }
+        
+        .preview-images .img-badge {
+          position: absolute;
+          left: 8px;
+          top: 8px;
+          font-size: 12px;
+          padding: 3px 7px;
+          border-radius: 999px;
+          background: rgba(0,0,0,0.55);
+          color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -114,6 +144,7 @@
         <button id="shareBtn" class="share-btn">Share</button>
         <div id="message" class="message"></div>
         <div id="previewText" class="preview-text"></div>
+        <div id="previewImages" class="preview-images"></div>
     </div>
 
     <script>
@@ -130,7 +161,47 @@
             const params = new URLSearchParams(window.location.search);
             const m = params.get('m');
             return m ? decodeURIComponent(m) : '';
-        }     
+        }   
+
+        function renderPreviewImages() {
+          const wrap = document.getElementById('previewImages');
+          if (!wrap) return;
+        
+          const urls = getImageUrlsFromQuery();
+          wrap.innerHTML = '';
+        
+          if (!urls.length) {
+            wrap.style.display = 'none';
+            return;
+          }
+        
+          wrap.style.display = 'grid';
+        
+          urls.forEach((url, idx) => {
+            const item = document.createElement('div');
+            item.className = 'img-wrap';
+        
+            const badge = document.createElement('div');
+            badge.className = 'img-badge';
+            badge.textContent = `${idx + 1}`;
+        
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.referrerPolicy = 'no-referrer';
+            img.alt = `preview-${idx + 1}`;
+            img.src = url;
+        
+            img.onerror = () => {
+              img.style.display = 'none';
+              badge.textContent = `x${idx + 1}`;
+            };
+        
+            item.appendChild(img);
+            item.appendChild(badge);
+            wrap.appendChild(item);
+          });
+        }
+        
 
         // Parse URL query parameter to get image URLs
         function getImageUrlsFromQuery() {
@@ -307,6 +378,7 @@
                 showMessage('Add image URLs using ?q=url1,url2,url3', 'info');
             }
             renderPreviewMessage();
+            renderPreviewImages();
         });
     </script>
 </body>
