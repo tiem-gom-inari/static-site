@@ -114,6 +114,12 @@
             showMessage('Native sharing is not supported on this device/browser', 'error');
         }
 
+        function getMessageFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const m = params.get('m');
+            return m ? decodeURIComponent(m) : '';
+        }
+
         // Parse URL query parameter to get image URLs
         function getImageUrlsFromQuery() {
             // Get the full query string after '?q='
@@ -229,10 +235,12 @@
                     return;
                 }
 
+                const messageFromUrl = getMessageFromQuery();
+
                 // Data to share with images
                 const shareData = {
                     title: 'Check out these images!',
-                    text: `Sharing ${imageFiles.length} image(s)`,
+                    text: messageFromUrl || `Sharing ${imageFiles.length} image(s)`,
                     files: imageFiles
                 };
 
