@@ -96,12 +96,24 @@
             border-left-color: #ffc107;
             display: block;
         }
+        .preview-text {
+            margin-top: 16px;
+            padding: 12px 14px;
+            background: #f8f9fa;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: left;
+            white-space: pre-wrap;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <button id="shareBtn" class="share-btn">Share</button>
         <div id="message" class="message"></div>
+        <div id="previewText" class="preview-text"></div>
     </div>
 
     <script>
@@ -119,6 +131,15 @@
             const m = params.get('m');
             return m ? decodeURIComponent(m) : '';
         }
+        
+        function formatShareMessage(rawText) {
+            if (!rawText) return '';
+        
+            return rawText
+                .replace(/ • /g, '\n• ')
+                .replace(/ - /g, '\n- ')
+                .trim();
+        }        
 
         // Parse URL query parameter to get image URLs
         function getImageUrlsFromQuery() {
@@ -144,6 +165,16 @@
                 .filter(url => url.length > 0 && url.startsWith('http'));  // Validate URLs
 
             return urls;
+        }
+
+        function renderPreviewMessage() {
+            const previewEl = document.getElementById('previewText');
+            if (!previewEl) return;
+        
+            const raw = getMessageFromQuery();
+            const formatted = formatShareMessage(raw);
+        
+            previewEl.textContent = formatted || '(No share text)';
         }
 
         // Fetch image from URL and convert to File object
@@ -285,6 +316,7 @@
             } else {
                 showMessage('Add image URLs using ?q=url1,url2,url3', 'info');
             }
+            renderPreviewMessage();
         });
     </script>
 </body>
