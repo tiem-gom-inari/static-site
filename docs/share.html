@@ -1,385 +1,406 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Native Share Button</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: #fafafa;
-            padding: 20px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Native Share Button</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #fafafa;
+      padding: 20px;
+    }
 
-        .container {
-            text-align: center;
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
-            max-width: 400px;
-            border: 1px solid #f0f0f0;
-        }
+    .container {
+      text-align: center;
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+      max-width: 400px;
+      border: 1px solid #f0f0f0;
+    }
 
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-        }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
 
-        .share-btn {
-            background: #c9302c;
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            font-weight: 500;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(201, 48, 44, 0.3);
-            letter-spacing: 0.5px;
-        }
+    .share-btn {
+      background: #c9302c;
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 18px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(201, 48, 44, 0.3);
+      letter-spacing: 0.5px;
+    }
 
-        .share-btn:hover {
-            background: #a02622;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(201, 48, 44, 0.4);
-        }
+    .share-btn:hover {
+      background: #a02622;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(201, 48, 44, 0.4);
+    }
 
-        .share-btn:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 6px rgba(201, 48, 44, 0.3);
-        }
+    .share-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(201, 48, 44, 0.3);
+    }
 
-        .share-btn:disabled {
-            background: #ddd;
-            cursor: not-allowed;
-            box-shadow: none;
-            color: #999;
-        }
+    .share-btn:disabled {
+      background: #ddd;
+      cursor: not-allowed;
+      box-shadow: none;
+      color: #999;
+    }
 
-        .message {
-            margin-top: 20px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            display: none;
-            border-left: 4px solid;
-        }
+    .message {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+      border-left: 4px solid;
+    }
 
-        .message.success {
-            background: #f0f9f4;
-            color: #1e7e34;
-            border-left-color: #28a745;
-            display: block;
-        }
+    .message.success {
+      background: #f0f9f4;
+      color: #1e7e34;
+      border-left-color: #28a745;
+      display: block;
+    }
 
-        .message.error {
-            background: #fef5f5;
-            color: #c9302c;
-            border-left-color: #c9302c;
-            display: block;
-        }
+    .message.error {
+      background: #fef5f5;
+      color: #c9302c;
+      border-left-color: #c9302c;
+      display: block;
+    }
 
-        .message.info {
-            background: #fefaf0;
-            color: #856404;
-            border-left-color: #ffc107;
-            display: block;
-        }
-        .preview-text {
-            margin-top: 16px;
-            padding: 12px 14px;
-            background: #f8f9fa;
-            border: 1px dashed #ccc;
-            border-radius: 8px;
-            font-size: 14px;
-            text-align: left;
-            white-space: pre-wrap;
-            color: #333;
-        }
-        .preview-images {
-          margin-top: 16px;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-        }
-        
-        .preview-images img {
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          object-fit: cover;
-          border-radius: 10px;
-          border: 1px solid #eee;
-          background: #f5f5f5;
-        }
-        
-        .preview-images .img-wrap {
-          position: relative;
-        }
-        
-        .preview-images .img-badge {
-          position: absolute;
-          left: 8px;
-          top: 8px;
-          font-size: 12px;
-          padding: 3px 7px;
-          border-radius: 999px;
-          background: rgba(0,0,0,0.55);
-          color: #fff;
-        }
-    </style>
+    .message.info {
+      background: #fefaf0;
+      color: #856404;
+      border-left-color: #ffc107;
+      display: block;
+    }
+    .preview-text {
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: #f8f9fa;
+      border: 1px dashed #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: left;
+      white-space: pre-wrap;
+      color: #333;
+    }
+    .preview-images {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .preview-images img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #eee;
+      background: #f5f5f5;
+    }
+
+    .preview-images .img-wrap {
+      position: relative;
+    }
+
+    .preview-images .img-badge {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      font-size: 12px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <button id="shareBtn" class="share-btn">Share</button>
-        <div id="message" class="message"></div>
-        <div id="previewText" class="preview-text"></div>
-        <div id="previewImages" class="preview-images"></div>
-    </div>
+<div class="container">
+  <button id="shareBtn" class="share-btn">Share</button>
+  <div id="message" class="message"></div>
+  <div id="previewText" class="preview-text"></div>
+  <div id="previewImages" class="preview-images"></div>
+</div>
 
-    <script>
-        const shareBtn = document.getElementById('shareBtn');
-        const messageDiv = document.getElementById('message');
+<script>
+  const shareBtn = document.getElementById('shareBtn');
+  const messageDiv = document.getElementById('message');
 
-        // Check if Web Share API is supported
-        if (!navigator.share) {
-            shareBtn.disabled = true;
-            showMessage('Native sharing is not supported on this device/browser', 'error');
+  // Cache image files to avoid downloading twice (preview + share)
+  let imageFilesCache = null;      // File[]
+  let imageFilesPromise = null;    // Promise<File[]>
+
+  // Check if Web Share API is supported
+  if (!navigator.share) {
+    shareBtn.disabled = true;
+    showMessage('Native sharing is not supported on this device/browser', 'error');
+  }
+
+  function getMessageFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get('m');
+    return m ? decodeURIComponent(m) : '';
+  }
+
+  async function renderPreviewImages() {
+    const wrap = document.getElementById('previewImages');
+    if (!wrap) return;
+
+    wrap.innerHTML = '';
+
+    const imageFiles = await getImageFilesOnce();
+
+    if (!imageFiles.length) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    wrap.style.display = 'grid';
+
+    imageFiles.forEach((file, idx) => {
+      const item = document.createElement('div');
+      item.className = 'img-wrap';
+
+      const badge = document.createElement('div');
+      badge.className = 'img-badge';
+      badge.textContent = `${idx + 1}`;
+
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = `preview-${idx + 1}`;
+
+      // 🔥 CHỖ DUY NHẤT KHÁC
+      img.src = URL.createObjectURL(file);
+
+      item.appendChild(img);
+      item.appendChild(badge);
+      wrap.appendChild(item);
+    });
+  }
+
+  // Parse URL query parameter to get image URLs
+  function getImageUrlsFromQuery() {
+    // Get the full query string after '?q='
+    const fullUrl = window.location.href;
+    const qIndex = fullUrl.indexOf('?q=');
+
+    if (qIndex === -1) {
+      return [];
+    }
+
+    // Get everything after '?q='
+    const qParam = fullUrl.substring(qIndex + 3);  // +3 to skip '?q='
+
+    // Decode the parameter value
+    const decodedParam = decodeURIComponent(qParam);
+
+    // Split by comma (with optional surrounding spaces) and trim whitespace
+    // The URLs should be properly separated by commas in the original link
+    const urls = decodedParam
+            .split(/\s*,\s*/)  // Split by comma with optional whitespace
+            .map(url => url.trim())
+            .filter(url => url.length > 0 && url.startsWith('http'));  // Validate URLs
+
+    return urls;
+  }
+
+  function renderPreviewMessage() {
+    const previewEl = document.getElementById('previewText');
+    if (!previewEl) return;
+
+    const raw = getMessageFromQuery();
+
+    previewEl.textContent = raw || '(No share text)';
+  }
+
+  // Fetch image from URL and convert to File object
+  async function fetchImageAsFile(imageUrl, index) {
+    console.log(`Fetching image ${index + 1}:`, imageUrl);
+
+    try {
+      // Try to fetch the image
+      const response = await fetch(imageUrl, {
+        mode: 'cors',
+        cache: 'no-cache',
+        credentials: 'omit'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error('Received empty image data');
+      }
+
+      // Extract filename from URL params or use default
+      let filename = `image-${index + 1}.jpg`;
+
+      // Try to extract filename from URL
+      try {
+        const urlObj = new URL(imageUrl);
+        const fileNameParam = urlObj.searchParams.get('fileName');
+        if (fileNameParam) {
+          // Extract just the filename without path
+          const parts = fileNameParam.split('/');
+          filename = parts[parts.length - 1];
+          // Decode URL encoding (e.g., %2F -> /)
+          filename = decodeURIComponent(filename);
         }
+      } catch (urlError) {
+        console.warn('Could not parse filename from URL:', urlError);
+      }
 
-        function getMessageFromQuery() {
-            const params = new URLSearchParams(window.location.search);
-            const m = params.get('m');
-            return m ? decodeURIComponent(m) : '';
-        }   
+      // Determine file type from blob or default to jpeg
+      let fileType = blob.type;
+      if (!fileType || fileType === 'application/octet-stream') {
+        // Try to guess from filename extension
+        const ext = filename.split('.').pop().toLowerCase();
+        const mimeTypes = {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'webp': 'image/webp'
+        };
+        fileType = mimeTypes[ext] || 'image/jpeg';
+      }
 
-        function renderPreviewImages() {
-          const wrap = document.getElementById('previewImages');
-          if (!wrap) return;
-        
-          const urls = getImageUrlsFromQuery();
-          wrap.innerHTML = '';
-        
-          if (!urls.length) {
-            wrap.style.display = 'none';
-            return;
-          }
-        
-          wrap.style.display = 'grid';
-        
-          urls.forEach((url, idx) => {
-            const item = document.createElement('div');
-            item.className = 'img-wrap';
-        
-            const badge = document.createElement('div');
-            badge.className = 'img-badge';
-            badge.textContent = `${idx + 1}`;
-        
-            const img = document.createElement('img');
-            img.loading = 'lazy';
-            img.referrerPolicy = 'no-referrer';
-            img.alt = `preview-${idx + 1}`;
-            img.src = url;
-        
-            img.onerror = () => {
-              img.style.display = 'none';
-              badge.textContent = `x${idx + 1}`;
-            };
-        
-            item.appendChild(img);
-            item.appendChild(badge);
-            wrap.appendChild(item);
-          });
-        }
-        
+      // Create File object from Blob
+      const file = new File([blob], filename, { type: fileType });
 
-        // Parse URL query parameter to get image URLs
-        function getImageUrlsFromQuery() {
-            // Get the full query string after '?q='
-            const fullUrl = window.location.href;
-            const qIndex = fullUrl.indexOf('?q=');
+      return file;
+    } catch (error) {
+      console.error(`Error fetching image ${index + 1} from ${imageUrl}:`, error);
+      throw new Error(`Image ${index + 1}: ${error.message}`);
+    }
+  }
 
-            if (qIndex === -1) {
-                return [];
-            }
+  async function getImageFilesOnce() {
+    if (imageFilesCache) return imageFilesCache;
+    if (imageFilesPromise) return imageFilesPromise;
 
-            // Get everything after '?q='
-            const qParam = fullUrl.substring(qIndex + 3);  // +3 to skip '?q='
+    const imageUrls = getImageUrlsFromQuery();
+    if (imageUrls.length === 0) {
+      imageFilesCache = [];
+      return imageFilesCache;
+    }
 
-            // Decode the parameter value
-            const decodedParam = decodeURIComponent(qParam);
+    imageFilesPromise = Promise.all(
+            imageUrls.map((url, index) => fetchImageAsFile(url, index))
+    ).then(files => {
+      imageFilesCache = files;
+      return files;
+    }).finally(() => {
+      imageFilesPromise = null;
+    });
 
-            // Split by comma (with optional surrounding spaces) and trim whitespace
-            // The URLs should be properly separated by commas in the original link
-            const urls = decodedParam
-                .split(/\s*,\s*/)  // Split by comma with optional whitespace
-                .map(url => url.trim())
-                .filter(url => url.length > 0 && url.startsWith('http'));  // Validate URLs
+    return imageFilesPromise;
+  }
 
-            return urls;
-        }
 
-        function renderPreviewMessage() {
-            const previewEl = document.getElementById('previewText');
-            if (!previewEl) return;
-        
-            const raw = getMessageFromQuery();
-        
-            previewEl.textContent = raw || '(No share text)';
-        }
+  shareBtn.addEventListener('click', async () => {
+    try {
+      // Get image URLs from query parameter
+      const imageUrls = getImageUrlsFromQuery();
 
-        // Fetch image from URL and convert to File object
-        async function fetchImageAsFile(imageUrl, index) {
-            console.log(`Fetching image ${index + 1}:`, imageUrl);
+      if (imageUrls.length === 0) {
+        showMessage('No image URLs found in query parameter "q"', 'error');
+        return;
+      }
 
-            try {
-                // Try to fetch the image
-                const response = await fetch(imageUrl, {
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    credentials: 'omit'
-                });
+      showMessage(`Loading ${imageUrls.length} image(s)...`, 'info');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+      // Fetch all images and convert to File objects
+      let imageFiles;
+      try {
+        imageFiles = await getImageFilesOnce();
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        showMessage('Failed to load images: ' + fetchError.message, 'error');
+        return;
+      }
 
-                const blob = await response.blob();
+      const messageFromUrl = getMessageFromQuery();
 
-                if (blob.size === 0) {
-                    throw new Error('Received empty image data');
-                }
+      // Data to share with images
+      const shareData = {
+        title: 'Check out these images!',
+        text: messageFromUrl || `Sharing ${imageFiles.length} image(s)`,
+        files: imageFiles
+      };
 
-                // Extract filename from URL params or use default
-                let filename = `image-${index + 1}.jpg`;
+      // Check if files can be shared
+      if (navigator.canShare && !navigator.canShare(shareData)) {
+        console.error('Cannot share files:', shareData);
+        showMessage('Your browser cannot share files of this type', 'error');
+        return;
+      }
 
-                // Try to extract filename from URL
-                try {
-                    const urlObj = new URL(imageUrl);
-                    const fileNameParam = urlObj.searchParams.get('fileName');
-                    if (fileNameParam) {
-                        // Extract just the filename without path
-                        const parts = fileNameParam.split('/');
-                        filename = parts[parts.length - 1];
-                        // Decode URL encoding (e.g., %2F -> /)
-                        filename = decodeURIComponent(filename);
-                    }
-                } catch (urlError) {
-                    console.warn('Could not parse filename from URL:', urlError);
-                }
+      // Trigger native share dialog
+      await navigator.share(shareData);
+      showMessage('Images shared successfully!', 'success');
+    } catch (error) {
+      // User cancelled or error occurred
+      if (error.name === 'AbortError') {
+        showMessage('Share cancelled', 'info');
+      } else {
+        showMessage('Error: ' + error.message, 'error');
+        console.error('Error sharing:', error);
+      }
+    }
+  });
 
-                // Determine file type from blob or default to jpeg
-                let fileType = blob.type;
-                if (!fileType || fileType === 'application/octet-stream') {
-                    // Try to guess from filename extension
-                    const ext = filename.split('.').pop().toLowerCase();
-                    const mimeTypes = {
-                        'jpg': 'image/jpeg',
-                        'jpeg': 'image/jpeg',
-                        'png': 'image/png',
-                        'gif': 'image/gif',
-                        'webp': 'image/webp'
-                    };
-                    fileType = mimeTypes[ext] || 'image/jpeg';
-                }
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = 'message ' + type;
 
-                // Create File object from Blob
-                const file = new File([blob], filename, { type: fileType });
+    // Auto-hide success/info messages after 3 seconds
+    if (type === 'success' || type === 'info') {
+      setTimeout(() => {
+        messageDiv.className = 'message';
+      }, 3000);
+    }
+  }
 
-                return file;
-            } catch (error) {
-                console.error(`Error fetching image ${index + 1} from ${imageUrl}:`, error);
-                throw new Error(`Image ${index + 1}: ${error.message}`);
-            }
-        }
-
-        shareBtn.addEventListener('click', async () => {
-            try {
-                // Get image URLs from query parameter
-                const imageUrls = getImageUrlsFromQuery();
-
-                if (imageUrls.length === 0) {
-                    showMessage('No image URLs found in query parameter "q"', 'error');
-                    return;
-                }
-
-                showMessage(`Loading ${imageUrls.length} image(s)...`, 'info');
-
-                // Fetch all images and convert to File objects
-                let imageFiles;
-                try {
-                    imageFiles = await Promise.all(
-                        imageUrls.map((url, index) => fetchImageAsFile(url, index))
-                    );
-                } catch (fetchError) {
-                    console.error('Fetch error:', fetchError);
-                    showMessage('Failed to load images: ' + fetchError.message, 'error');
-                    return;
-                }
-
-                const messageFromUrl = getMessageFromQuery();
-
-                // Data to share with images
-                const shareData = {
-                    title: 'Check out these images!',
-                    text: messageFromUrl || `Sharing ${imageFiles.length} image(s)`,
-                    files: imageFiles
-                };
-
-                // Check if files can be shared
-                if (navigator.canShare && !navigator.canShare(shareData)) {
-                    console.error('Cannot share files:', shareData);
-                    showMessage('Your browser cannot share files of this type', 'error');
-                    return;
-                }
-
-                // Trigger native share dialog
-                await navigator.share(shareData);
-                showMessage('Images shared successfully!', 'success');
-            } catch (error) {
-                // User cancelled or error occurred
-                if (error.name === 'AbortError') {
-                    showMessage('Share cancelled', 'info');
-                } else {
-                    showMessage('Error: ' + error.message, 'error');
-                    console.error('Error sharing:', error);
-                }
-            }
-        });
-
-        function showMessage(text, type) {
-            messageDiv.textContent = text;
-            messageDiv.className = 'message ' + type;
-
-            // Auto-hide success/info messages after 3 seconds
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    messageDiv.className = 'message';
-                }, 3000);
-            }
-        }
-
-        // Display loaded URLs on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            const imageUrls = getImageUrlsFromQuery();
-            if (imageUrls.length > 0) {
-                showMessage(`Ready to share ${imageUrls.length} image(s)`, 'info');
-            } else {
-                showMessage('Add image URLs using ?q=url1,url2,url3', 'info');
-            }
-            renderPreviewMessage();
-            renderPreviewImages();
-        });
-    </script>
+  // Display loaded URLs on page load
+  window.addEventListener('DOMContentLoaded', () => {
+    const imageUrls = getImageUrlsFromQuery();
+    if (imageUrls.length > 0) {
+      showMessage(`Ready to share ${imageUrls.length} image(s)`, 'info');
+    } else {
+      showMessage('Add image URLs using ?q=url1,url2,url3', 'info');
+    }
+    renderPreviewMessage();
+    renderPreviewImages();
+  });
+</script>
 </body>
 </html>
