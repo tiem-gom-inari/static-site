@@ -137,10 +137,55 @@
       background: rgba(0,0,0,0.55);
       color: #fff;
     }
+
+    .share-options {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .toggle-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-option input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #c9302c;
+    }
+
+    .toggle-option label {
+      cursor: pointer;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .toggle-option input[type="checkbox"]:disabled + label {
+      color: #999;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
 <div class="container">
+  <div class="share-options">
+    <div class="toggle-option">
+      <input type="checkbox" id="toggleText" checked>
+      <label for="toggleText">Include Text</label>
+    </div>
+    <div class="toggle-option">
+      <input type="checkbox" id="toggleImages" checked>
+      <label for="toggleImages">Include Images</label>
+    </div>
+  </div>
+
   <button id="shareBtn" class="share-btn">Share</button>
   <div id="message" class="message"></div>
   <div id="previewText" class="preview-text"></div>
@@ -328,45 +373,74 @@
 
   shareBtn.addEventListener('click', async () => {
     try {
-      // Get image URLs from query parameter
-      const imageUrls = getImageUrlsFromQuery();
+      const includeText = document.getElementById('toggleText').checked;
+      const includeImages = document.getElementById('toggleImages').checked;
 
-      if (imageUrls.length === 0) {
-        showMessage('No image URLs found in query parameter "q"', 'error');
+      // Check if at least one option is selected
+      if (!includeText && !includeImages) {
+        showMessage('Please select at least one option to share', 'error');
         return;
       }
 
-      showMessage(`Loading ${imageUrls.length} image(s)...`, 'info');
+      const shareData = {};
+      let itemsToShare = [];
 
-      // Fetch all images and convert to File objects
-      let imageFiles;
-      try {
-        imageFiles = await getImageFilesOnce();
-      } catch (fetchError) {
-        console.error('Fetch error:', fetchError);
-        showMessage('Failed to load images: ' + fetchError.message, 'error');
+      // Handle text
+      if (includeText) {
+        const messageFromUrl = getMessageFromQuery();
+        if (messageFromUrl) {
+          shareData.text = messageFromUrl;
+          itemsToShare.push('text');
+        }
+      }
+
+      // Handle images
+      if (includeImages) {
+        const imageUrls = getImageUrlsFromQuery();
+
+        if (imageUrls.length > 0) {
+          showMessage(`Loading ${imageUrls.length} image(s)...`, 'info');
+
+          // Fetch all images and convert to File objects
+          let imageFiles;
+          try {
+            imageFiles = await getImageFilesOnce();
+          } catch (fetchError) {
+            console.error('Fetch error:', fetchError);
+            showMessage('Failed to load images: ' + fetchError.message, 'error');
+            return;
+          }
+
+          shareData.files = imageFiles;
+          itemsToShare.push(`${imageFiles.length} image(s)`);
+        }
+      }
+
+      // Check if there's anything to share
+      if (!shareData.text && !shareData.files) {
+        showMessage('Nothing to share. Add content via URL parameters', 'error');
         return;
       }
 
-      const messageFromUrl = getMessageFromQuery();
-
-      // Data to share with images
-      const shareData = {
-        title: 'Check out these images!',
-        text: messageFromUrl || `Sharing ${imageFiles.length} image(s)`,
-        files: imageFiles
-      };
+      // Set title based on what's being shared
+      if (shareData.files && shareData.text) {
+        shareData.title = 'Sharing content';
+      } else if (shareData.files) {
+        shareData.title = 'Sharing images';
+      } else {
+        shareData.title = 'Sharing text';
+      }
 
       // Check if files can be shared
       if (navigator.canShare && !navigator.canShare(shareData)) {
-        console.error('Cannot share files:', shareData);
-        showMessage('Your browser cannot share files of this type', 'error');
+        console.error('Cannot share:', shareData);
+        showMessage('Your browser cannot share this content', 'error');
         return;
       }
 
       // Trigger native share dialog
       await navigator.share(shareData);
-      showMessage('Images shared successfully!', 'success');
+      showMessage(`Shared ${itemsToShare.join(' + ')} successfully!`, 'success');
     } catch (error) {
       // User cancelled or error occurred
       if (error.name === 'AbortError') {
@@ -390,14 +464,43 @@
     }
   }
 
+  // Handle toggle changes
+  function updateToggleStates() {
+    const toggleText = document.getElementById('toggleText');
+    const toggleImages = document.getElementById('toggleImages');
+    const messageFromUrl = getMessageFromQuery();
+    const imageUrls = getImageUrlsFromQuery();
+
+    // Disable text toggle if no text available
+    if (!messageFromUrl) {
+      toggleText.disabled = true;
+      toggleText.checked = false;
+    }
+
+    // Disable images toggle if no images available
+    if (imageUrls.length === 0) {
+      toggleImages.disabled = true;
+      toggleImages.checked = false;
+    }
+  }
+
   // Display loaded URLs on page load
   window.addEventListener('DOMContentLoaded', () => {
     const imageUrls = getImageUrlsFromQuery();
-    if (imageUrls.length > 0) {
-      showMessage(`Ready to share ${imageUrls.length} image(s)`, 'info');
+    const messageFromUrl = getMessageFromQuery();
+
+    updateToggleStates();
+
+    let parts = [];
+    if (messageFromUrl) parts.push('text');
+    if (imageUrls.length > 0) parts.push(`${imageUrls.length} image(s)`);
+
+    if (parts.length > 0) {
+      showMessage(`Ready to share ${parts.join(' + ')}`, 'info');
     } else {
-      showMessage('Add image URLs using ?q=url1,url2,url3', 'info');
+      showMessage('Add content using ?m=text or ?q=imageUrls', 'info');
     }
+
     renderPreviewMessage();
     renderPreviewImages();
   });
