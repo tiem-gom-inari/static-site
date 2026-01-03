@@ -255,62 +255,11 @@
             return new Intl.NumberFormat('vi-VN').format(amount);
         }
 
-        // Populate the page with data
-        function populateData() {
-            const params = getUrlParams();
+        // Cache for images
+        let imageFilesCache = [];
+        let imageBlobUrlsCache = [];
 
-            // Update contact information
-            document.getElementById('address').textContent = params.address;
-            document.getElementById('phone').textContent = params.phone;
-            document.getElementById('bank_info').textContent = params.bank_info;
-
-            // Parse and populate items
-            const items = parseItems(params.items_info, params.items_image);
-            const tbody = document.getElementById('items-tbody');
-
-            if (items.length > 0) {
-                tbody.innerHTML = ''; // Clear existing rows
-
-                let calculatedTotal = 0;
-
-                items.forEach((item, index) => {
-                    const row = document.createElement('tr');
-                    const lineTotal = parseInt(item.line_total) || (parseInt(item.quantity) * parseInt(item.unit_price));
-                    calculatedTotal += lineTotal;
-
-                    row.innerHTML = `
-                        <td>${index + 1}</td>
-                        <td><img src="${item.image_url || 'placeholder.jpg'}" alt="${item.name || ''}" class="product-image" onerror="this.style.display='none'"></td>
-                        <td>${item.quantity || 1}</td>
-                        <td>${item.unit || ''}</td>
-                        <td>${formatCurrency(parseInt(item.unit_price) || 0)} đ</td>
-                        <td>${formatCurrency(lineTotal)} đ</td>
-                    `;
-
-                    tbody.appendChild(row);
-                });
-
-                // Update totals
-                const subTotal = params.sub_total ? parseInt(params.sub_total) : calculatedTotal;
-                const grandTotal = params.grand_total ? parseInt(params.grand_total) : subTotal;
-
-                document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
-                document.getElementById('grand_total').textContent = `${formatCurrency(grandTotal)} đ`;
-            } else if (params.sub_total && params.grand_total) {
-                // If no items but totals provided, just update totals
-                document.getElementById('sub_total').textContent = `${formatCurrency(parseInt(params.sub_total))} đ`;
-                document.getElementById('grand_total').textContent = `${formatCurrency(parseInt(params.grand_total))} đ`;
-            }
-        }
-
-        // Run on page load
-        window.addEventListener('DOMContentLoaded', populateData);
-
-        // Cache for captured image
-        let capturedImageCache = null;
-        let capturedImagePromise = null;
-
-        // Fetch image from URL and convert to File object (for product images)
+        // Fetch image from URL and convert to File object
         async function fetchImageAsFile(imageUrl, index) {
             console.log(`Fetching image ${index + 1}:`, imageUrl);
 
@@ -362,9 +311,95 @@
                 return file;
             } catch (error) {
                 console.error(`Error fetching image ${index + 1}:`, error);
-                throw error;
+                return null; // Return null instead of throwing to allow partial success
             }
         }
+
+        // Populate the page with data
+        async function populateData() {
+            const params = getUrlParams();
+
+            // Update contact information
+            document.getElementById('address').textContent = params.address;
+            document.getElementById('phone').textContent = params.phone;
+            document.getElementById('bank_info').textContent = params.bank_info;
+
+            // Parse and populate items
+            const items = parseItems(params.items_info, params.items_image);
+            const tbody = document.getElementById('items-tbody');
+
+            if (items.length > 0) {
+                tbody.innerHTML = ''; // Clear existing rows
+
+                // Extract image URLs
+                const imageUrls = items.map(item => item.image_url).filter(url => url);
+
+                // Fetch all images and cache them
+                if (imageUrls.length > 0) {
+                    showMessage(`Loading ${imageUrls.length} product images...`, 'info');
+
+                    const imageFiles = await Promise.all(
+                        imageUrls.map((url, idx) => fetchImageAsFile(url, idx))
+                    );
+
+                    // Create blob URLs and cache everything
+                    imageFiles.forEach((file, idx) => {
+                        if (file) {
+                            const blobUrl = URL.createObjectURL(file);
+                            imageFilesCache.push(file);
+                            imageBlobUrlsCache.push(blobUrl);
+                        }
+                    });
+
+                    showMessage('Images loaded successfully!', 'success');
+                }
+
+                let calculatedTotal = 0;
+                let imageIndex = 0;
+
+                items.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    const lineTotal = parseInt(item.line_total) || (parseInt(item.quantity) * parseInt(item.unit_price));
+                    calculatedTotal += lineTotal;
+
+                    // Use cached blob URL if available
+                    let imgSrc = 'placeholder.jpg';
+                    if (item.image_url && imageBlobUrlsCache[imageIndex]) {
+                        imgSrc = imageBlobUrlsCache[imageIndex];
+                        imageIndex++;
+                    }
+
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td><img src="${imgSrc}" alt="${item.name || ''}" class="product-image" onerror="this.style.display='none'"></td>
+                        <td>${item.quantity || 1}</td>
+                        <td>${item.unit || ''}</td>
+                        <td>${formatCurrency(parseInt(item.unit_price) || 0)} đ</td>
+                        <td>${formatCurrency(lineTotal)} đ</td>
+                    `;
+
+                    tbody.appendChild(row);
+                });
+
+                // Update totals
+                const subTotal = params.sub_total ? parseInt(params.sub_total) : calculatedTotal;
+                const grandTotal = params.grand_total ? parseInt(params.grand_total) : subTotal;
+
+                document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
+                document.getElementById('grand_total').textContent = `${formatCurrency(grandTotal)} đ`;
+            } else if (params.sub_total && params.grand_total) {
+                // If no items but totals provided, just update totals
+                document.getElementById('sub_total').textContent = `${formatCurrency(parseInt(params.sub_total))} đ`;
+                document.getElementById('grand_total').textContent = `${formatCurrency(parseInt(params.grand_total))} đ`;
+            }
+        }
+
+        // Run on page load
+        window.addEventListener('DOMContentLoaded', populateData);
+
+        // Cache for captured image
+        let capturedImageCache = null;
+        let capturedImagePromise = null;
 
         // Capture DOM as image and cache it
         async function getCapturedImageOnce() {
@@ -375,37 +410,30 @@
 
             capturedImagePromise = (async () => {
                 try {
-                    // First, preload all product images as File objects to avoid CORS issues
-                    const productImages = container.querySelectorAll('.product-image');
-                    const imageUrls = Array.from(productImages).map(img => img.src).filter(src => src && !src.startsWith('data:'));
-
-                    showMessage(`Loading ${imageUrls.length} product images...`, 'info');
-
-                    // Fetch and cache product images
-                    const imageFiles = await Promise.all(
-                        imageUrls.map((url, idx) => fetchImageAsFile(url, idx))
-                    );
-
-                    // Replace image sources with blob URLs from fetched files
-                    productImages.forEach((img, idx) => {
-                        if (imageFiles[idx]) {
-                            img.src = URL.createObjectURL(imageFiles[idx]);
-                        }
-                    });
-
-                    // Wait a bit for images to render
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
                     showMessage('Creating quotation image...', 'info');
 
-                    // Now capture with html2canvas
+                    // Hide the share button during capture
+                    const shareButtonDiv = document.querySelector('.share-button');
+                    if (shareButtonDiv) {
+                        shareButtonDiv.style.display = 'none';
+                    }
+
+                    // Wait a bit for images to fully render
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Now capture with html2canvas - images are already cached as blob URLs
                     const canvas = await html2canvas(container, {
                         backgroundColor: '#ffffff',
                         scale: 2,
                         logging: false,
-                        useCORS: true,
+                        useCORS: false,
                         allowTaint: true
                     });
+
+                    // Show the share button again
+                    if (shareButtonDiv) {
+                        shareButtonDiv.style.display = 'block';
+                    }
 
                     // Convert canvas to blob
                     const blob = await new Promise((resolve, reject) => {
