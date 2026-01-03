@@ -125,15 +125,41 @@
                 bank_info: params.get('bank_info') || '',
                 sub_total: params.get('sub_total') || '',
                 grand_total: params.get('grand_total') || '',
-                items: params.get('items') || ''
+                items_info: params.get('items_info') || '',
+                items_image: params.get('items_image') || ''
             };
         }
 
-        // Parse items from JSON string
-        function parseItems(itemsJson) {
-            if (!itemsJson) return [];
+        // Parse items from custom format
+        // Format: name:value|quantity:value|unit:value|unit_price:value|line_total:value , next_item...
+        function parseItems(itemsInfoStr, itemsImageStr) {
+            if (!itemsInfoStr) return [];
+
             try {
-                return JSON.parse(decodeURIComponent(itemsJson));
+                // Split items by comma
+                const itemsArr = itemsInfoStr.split(' , ').map(s => s.trim());
+                const imagesArr = itemsImageStr ? itemsImageStr.split(' , ').map(s => s.trim()) : [];
+
+                return itemsArr.map((itemStr, index) => {
+                    const item = {};
+
+                    // Split by pipe to get key:value pairs
+                    const pairs = itemStr.split('|');
+
+                    pairs.forEach(pair => {
+                        const [key, value] = pair.split(':');
+                        if (key && value !== undefined) {
+                            item[key.trim()] = value.trim();
+                        }
+                    });
+
+                    // Add image URL if available
+                    if (imagesArr[index]) {
+                        item.image_url = imagesArr[index];
+                    }
+
+                    return item;
+                });
             } catch (e) {
                 console.error('Error parsing items:', e);
                 return [];
@@ -155,7 +181,7 @@
             document.getElementById('bank_info').textContent = params.bank_info;
 
             // Parse and populate items
-            const items = parseItems(params.items);
+            const items = parseItems(params.items_info, params.items_image);
             const tbody = document.getElementById('items-tbody');
 
             if (items.length > 0) {
@@ -165,15 +191,15 @@
 
                 items.forEach((item, index) => {
                     const row = document.createElement('tr');
-                    const lineTotal = item.line_total || (item.quantity * item.unit_price);
+                    const lineTotal = parseInt(item.line_total) || (parseInt(item.quantity) * parseInt(item.unit_price));
                     calculatedTotal += lineTotal;
 
                     row.innerHTML = `
                         <td>${index + 1}</td>
-                        <td><img src="${item.image_url || ''}" alt="${item.name || ''}" class="product-image" onerror="this.style.display='none'"></td>
+                        <td><img src="${item.image_url || 'placeholder.jpg'}" alt="${item.name || ''}" class="product-image" onerror="this.style.display='none'"></td>
                         <td>${item.quantity || 1}</td>
                         <td>${item.unit || ''}</td>
-                        <td>${formatCurrency(item.unit_price || 0)} đ</td>
+                        <td>${formatCurrency(parseInt(item.unit_price) || 0)}</td>
                         <td>${formatCurrency(lineTotal)} đ</td>
                     `;
 
@@ -181,15 +207,15 @@
                 });
 
                 // Update totals
-                const subTotal = params.sub_total || calculatedTotal;
-                const grandTotal = params.grand_total || subTotal;
+                const subTotal = params.sub_total ? parseInt(params.sub_total) : calculatedTotal;
+                const grandTotal = params.grand_total ? parseInt(params.grand_total) : subTotal;
 
                 document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
                 document.getElementById('grand_total').textContent = `${formatCurrency(grandTotal)} đ`;
             } else if (params.sub_total && params.grand_total) {
                 // If no items but totals provided, just update totals
-                document.getElementById('sub_total').textContent = `${formatCurrency(params.sub_total)} đ`;
-                document.getElementById('grand_total').textContent = `${formatCurrency(params.grand_total)} đ`;
+                document.getElementById('sub_total').textContent = `${formatCurrency(parseInt(params.sub_total))} đ`;
+                document.getElementById('grand_total').textContent = `${formatCurrency(parseInt(params.grand_total))} đ`;
             }
         }
 
