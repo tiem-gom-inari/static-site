@@ -1,598 +1,508 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiệm gốm Inari - Báo giá</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .logo {
-            width: 100px;
-            height: auto;
-        }
-
-        .logo-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .store-name {
-            color: #d32f2f;
-            font-size: 2.5em;
-            font-weight: bold;
-        }
-
-        .info-section {
-            margin-bottom: 20px;
-            line-height: 1.8;
-        }
-
-        .info-section div {
-            margin-bottom: 10px;
-            font-size: 1.1em;
-        }
-
-        .info-label {
-            font-weight: bold;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th, td {
-            border: 1px solid #333;
-            padding: 12px;
-            text-align: center;
-        }
-
-        th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-
-        .product-image {
-            width: 120px;
-            height: 120px;
-            object-fit: cover;
-        }
-
-        .total-row {
-            text-align: right;
-            font-size: 1.3em;
-            font-weight: bold;
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #fff3e0;
-        }
-
-        .final-total {
-            text-align: right;
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #d32f2f;
-            margin-top: 10px;
-            padding: 15px;
-            background-color: #ffebee;
-        }
-
-        .stt-col { width: 8%; }
-        .image-col { width: 20%; }
-        .quantity-col { width: 12%; }
-        .unit-col { width: 15%; }
-        .price-col { width: 15%; }
-        .total-col { width: 20%; }
-
-        .share-button {
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .share-btn {
-            background: #d32f2f;
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            font-weight: 500;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(211, 47, 47, 0.3);
-        }
-
-        .share-btn:hover {
-            background: #b71c1c;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
-        }
-
-        .share-btn:active {
-            transform: translateY(0);
-        }
-
-        .share-btn:disabled {
-            background: #ddd;
-            cursor: not-allowed;
-            color: #999;
-        }
-
-        .message {
-            margin-top: 15px;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            display: none;
-        }
-
-        .message.success {
-            background: #f0f9f4;
-            color: #1e7e34;
-            border-left: 4px solid #28a745;
-            display: block;
-        }
-
-        .message.error {
-            background: #fef5f5;
-            color: #d32f2f;
-            border-left: 4px solid #d32f2f;
-            display: block;
-        }
-
-        .message.info {
-            background: #fefaf0;
-            color: #856404;
-            border-left: 4px solid #ffc107;
-            display: block;
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script>
-        // Parse URL parameters
-        function getUrlParams() {
-            // Get the raw query string to handle image URLs with & characters
-            const queryString = window.location.search.substring(1);
-
-            // Find items_image parameter and extract full URLs
-            const itemsImageMatch = queryString.match(/items_image=([^&]*(?:&(?!(?:address|phone|bank_info|items_info|sub_total|grand_total)=)[^&]*)*)/);
-            let itemsImageValue = '';
-
-            if (itemsImageMatch) {
-                itemsImageValue = decodeURIComponent(itemsImageMatch[1]);
-            }
-
-            const params = new URLSearchParams(window.location.search);
-            return {
-                address: params.get('address') || '',
-                phone: params.get('phone') || '',
-                bank_info: params.get('bank_info') || '',
-                sub_total: params.get('sub_total') || '',
-                grand_total: params.get('grand_total') || '',
-                items_info: params.get('items_info') || '',
-                items_image: itemsImageValue
-            };
-        }
-
-        // Parse items from custom format
-        // Format: name:value|quantity:value|unit:value|unit_price:value|line_total:value , next_item...
-        function parseItems(itemsInfoStr, itemsImageStr) {
-            if (!itemsInfoStr) return [];
-
-            try {
-                // Split items by comma
-                const itemsArr = itemsInfoStr.split(' , ').map(s => s.trim());
-
-                // For image URLs, we need to handle the case where & characters might be split
-                // Reconstruct full URLs by looking for URL patterns
-                let imagesArr = [];
-                if (itemsImageStr) {
-                    // Split by the pattern " , " which separates different image URLs
-                    imagesArr = itemsImageStr.split(' , ').map(s => s.trim());
-                }
-
-                return itemsArr.map((itemStr, index) => {
-                    const item = {};
-
-                    // Split by pipe to get key:value pairs
-                    const pairs = itemStr.split('|');
-
-                    pairs.forEach(pair => {
-                        const colonIndex = pair.indexOf(':');
-                        if (colonIndex > 0) {
-                            const key = pair.substring(0, colonIndex).trim();
-                            const value = pair.substring(colonIndex + 1).trim();
-                            item[key] = value;
-                        }
-                    });
-
-                    // Add image URL if available
-                    if (imagesArr[index]) {
-                        item.image_url = imagesArr[index];
-                    }
-
-                    return item;
-                });
-            } catch (e) {
-                console.error('Error parsing items:', e);
-                return [];
-            }
-        }
-
-        // Format currency
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('vi-VN').format(amount);
-        }
-
-        // Cache for images
-        let imageFilesCache = [];
-        let imageBlobUrlsCache = [];
-
-        // Fetch image from URL and convert to File object
-        async function fetchImageAsFile(imageUrl, index) {
-            console.log(`Fetching image ${index + 1}:`, imageUrl);
-
-            try {
-                const response = await fetch(imageUrl, {
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    credentials: 'omit'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const blob = await response.blob();
-
-                if (blob.size === 0) {
-                    throw new Error('Received empty image data');
-                }
-
-                let filename = `product-${index + 1}.jpg`;
-
-                try {
-                    const urlObj = new URL(imageUrl);
-                    const fileNameParam = urlObj.searchParams.get('fileName');
-                    if (fileNameParam) {
-                        const parts = fileNameParam.split('/');
-                        filename = parts[parts.length - 1];
-                        filename = decodeURIComponent(filename);
-                    }
-                } catch (urlError) {
-                    console.warn('Could not parse filename from URL:', urlError);
-                }
-
-                let fileType = blob.type;
-                if (!fileType || fileType === 'application/octet-stream') {
-                    const ext = filename.split('.').pop().toLowerCase();
-                    const mimeTypes = {
-                        'jpg': 'image/jpeg',
-                        'jpeg': 'image/jpeg',
-                        'png': 'image/png',
-                        'gif': 'image/gif',
-                        'webp': 'image/webp'
-                    };
-                    fileType = mimeTypes[ext] || 'image/jpeg';
-                }
-
-                const file = new File([blob], filename, { type: fileType });
-                return file;
-            } catch (error) {
-                console.error(`Error fetching image ${index + 1}:`, error);
-                return null; // Return null instead of throwing to allow partial success
-            }
-        }
-
-        // Populate the page with data
-        async function populateData() {
-            const params = getUrlParams();
-
-            // Update contact information
-            document.getElementById('address').textContent = params.address;
-            document.getElementById('phone').textContent = params.phone;
-            document.getElementById('bank_info').textContent = params.bank_info;
-
-            // Parse and populate items
-            const items = parseItems(params.items_info, params.items_image);
-            const tbody = document.getElementById('items-tbody');
-
-            if (items.length > 0) {
-                tbody.innerHTML = ''; // Clear existing rows
-
-                // Extract image URLs
-                const imageUrls = items.map(item => item.image_url).filter(url => url);
-
-                // Fetch all images and cache them
-                if (imageUrls.length > 0) {
-                    showMessage(`Loading ${imageUrls.length} product images...`, 'info');
-
-                    const imageFiles = await Promise.all(
-                        imageUrls.map((url, idx) => fetchImageAsFile(url, idx))
-                    );
-
-                    // Create blob URLs and cache everything
-                    imageFiles.forEach((file, idx) => {
-                        if (file) {
-                            const blobUrl = URL.createObjectURL(file);
-                            imageFilesCache.push(file);
-                            imageBlobUrlsCache.push(blobUrl);
-                        }
-                    });
-
-                    showMessage('Images loaded successfully!', 'success');
-                }
-
-                let calculatedTotal = 0;
-                let imageIndex = 0;
-
-                items.forEach((item, index) => {
-                    const row = document.createElement('tr');
-                    const lineTotal = parseInt(item.line_total) || (parseInt(item.quantity) * parseInt(item.unit_price));
-                    calculatedTotal += lineTotal;
-
-                    // Use cached blob URL if available
-                    let imgSrc = 'placeholder.jpg';
-                    if (item.image_url && imageBlobUrlsCache[imageIndex]) {
-                        imgSrc = imageBlobUrlsCache[imageIndex];
-                        imageIndex++;
-                    }
-
-                    row.innerHTML = `
-                        <td>${index + 1}</td>
-                        <td><img src="${imgSrc}" alt="${item.name || ''}" class="product-image" onerror="this.style.display='none'"></td>
-                        <td>${item.quantity || 1}</td>
-                        <td>${item.unit || ''}</td>
-                        <td>${formatCurrency(parseInt(item.unit_price) || 0)} đ</td>
-                        <td>${formatCurrency(lineTotal)} đ</td>
-                    `;
-
-                    tbody.appendChild(row);
-                });
-
-                // Update totals
-                const subTotal = params.sub_total ? parseInt(params.sub_total) : calculatedTotal;
-                const grandTotal = params.grand_total ? parseInt(params.grand_total) : subTotal;
-
-                document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
-                document.getElementById('grand_total').textContent = `${formatCurrency(grandTotal)} đ`;
-            } else if (params.sub_total && params.grand_total) {
-                // If no items but totals provided, just update totals
-                document.getElementById('sub_total').textContent = `${formatCurrency(parseInt(params.sub_total))} đ`;
-                document.getElementById('grand_total').textContent = `${formatCurrency(parseInt(params.grand_total))} đ`;
-            }
-        }
-
-        // Run on page load
-        window.addEventListener('DOMContentLoaded', populateData);
-
-        // Cache for captured image
-        let capturedImageCache = null;
-        let capturedImagePromise = null;
-
-        // Capture DOM as image and cache it
-        async function getCapturedImageOnce() {
-            if (capturedImageCache) return capturedImageCache;
-            if (capturedImagePromise) return capturedImagePromise;
-
-            const container = document.querySelector('.container');
-
-            capturedImagePromise = (async () => {
-                try {
-                    showMessage('Creating quotation image...', 'info');
-
-                    // Hide the share button during capture
-                    const shareButtonDiv = document.querySelector('.share-button');
-                    if (shareButtonDiv) {
-                        shareButtonDiv.style.display = 'none';
-                    }
-
-                    // Wait a bit for images to fully render
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // Now capture with html2canvas - images are already cached as blob URLs
-                    const canvas = await html2canvas(container, {
-                        backgroundColor: '#ffffff',
-                        scale: 2,
-                        logging: false,
-                        useCORS: false,
-                        allowTaint: true
-                    });
-
-                    // Show the share button again
-                    if (shareButtonDiv) {
-                        shareButtonDiv.style.display = 'block';
-                    }
-
-                    // Convert canvas to blob
-                    const blob = await new Promise((resolve, reject) => {
-                        canvas.toBlob((blob) => {
-                            if (blob) {
-                                resolve(blob);
-                            } else {
-                                reject(new Error('Failed to create image blob'));
-                            }
-                        }, 'image/png', 0.95);
-                    });
-
-                    // Create File object
-                    const file = new File([blob], 'inari-quotation.png', { type: 'image/png' });
-
-                    capturedImageCache = file;
-                    return file;
-                } catch (error) {
-                    console.error('Error capturing image:', error);
-                    throw error;
-                }
-            })();
-
-            try {
-                return await capturedImagePromise;
-            } finally {
-                capturedImagePromise = null;
-            }
-        }
-
-        // Share functionality
-        async function captureAndShare() {
-            const shareBtn = document.getElementById('shareBtn');
-
-            try {
-                shareBtn.disabled = true;
-
-                // Get or create the captured image
-                const imageFile = await getCapturedImageOnce();
-
-                // Check if Web Share API is supported
-                if (!navigator.share) {
-                    showMessage('Sharing is not supported. Downloading image instead...', 'info');
-
-                    // Fallback: Download the image
-                    const url = URL.createObjectURL(imageFile);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = imageFile.name;
-                    a.click();
-                    URL.revokeObjectURL(url);
-
-                    setTimeout(() => {
-                        showMessage('Image downloaded successfully!', 'success');
-                    }, 500);
-
-                    shareBtn.disabled = false;
-                    return;
-                }
-
-                // Prepare share data
-                const shareData = {
-                    title: 'Tiệm gốm Inari - Báo giá',
-                    files: [imageFile]
-                };
-
-                // Check if files can be shared
-                if (navigator.canShare && !navigator.canShare(shareData)) {
-                    showMessage('Your browser cannot share images. Downloading instead...', 'info');
-
-                    const url = URL.createObjectURL(imageFile);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = imageFile.name;
-                    a.click();
-                    URL.revokeObjectURL(url);
-
-                    shareBtn.disabled = false;
-                    return;
-                }
-
-                // Share the image
-                await navigator.share(shareData);
-                showMessage('Quotation shared successfully!', 'success');
-
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    showMessage('Share cancelled', 'info');
-                } else {
-                    console.error('Error sharing:', error);
-                    showMessage('Error: ' + error.message, 'error');
-                }
-            } finally {
-                shareBtn.disabled = false;
-            }
-        }
-
-        function showMessage(text, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = text;
-            messageDiv.className = 'message ' + type;
-
-            // Auto-hide success/info messages after 3 seconds
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    messageDiv.className = 'message';
-                }, 3000);
-            }
-        }
-
-        // Add event listener to share button
-        window.addEventListener('DOMContentLoaded', () => {
-            const shareBtn = document.getElementById('shareBtn');
-            if (shareBtn) {
-                shareBtn.addEventListener('click', captureAndShare);
-            }
-        });
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Native Share Button</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #fafafa;
+      padding: 20px;
+    }
+
+    .container {
+      text-align: center;
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+      max-width: 400px;
+      border: 1px solid #f0f0f0;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .share-btn {
+      background: #c9302c;
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 18px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(201, 48, 44, 0.3);
+      letter-spacing: 0.5px;
+    }
+
+    .share-btn:hover {
+      background: #a02622;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(201, 48, 44, 0.4);
+    }
+
+    .share-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(201, 48, 44, 0.3);
+    }
+
+    .share-btn:disabled {
+      background: #ddd;
+      cursor: not-allowed;
+      box-shadow: none;
+      color: #999;
+    }
+
+    .message {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+      border-left: 4px solid;
+    }
+
+    .message.success {
+      background: #f0f9f4;
+      color: #1e7e34;
+      border-left-color: #28a745;
+      display: block;
+    }
+
+    .message.error {
+      background: #fef5f5;
+      color: #c9302c;
+      border-left-color: #c9302c;
+      display: block;
+    }
+
+    .message.info {
+      background: #fefaf0;
+      color: #856404;
+      border-left-color: #ffc107;
+      display: block;
+    }
+    .preview-text {
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: #f8f9fa;
+      border: 1px dashed #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: left;
+      white-space: pre-wrap;
+      color: #333;
+    }
+    .preview-images {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .preview-images img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #eee;
+      background: #f5f5f5;
+    }
+
+    .preview-images .img-wrap {
+      position: relative;
+    }
+
+    .preview-images .img-badge {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      font-size: 12px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+    }
+
+    .share-options {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .toggle-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-option input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #c9302c;
+    }
+
+    .toggle-option label {
+      cursor: pointer;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .toggle-option input[type="checkbox"]:disabled + label {
+      color: #999;
+      cursor: not-allowed;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <img src="logo.svg" alt="Tiệm gốm Inari Logo" class="logo">
-            <h1 class="store-name">Tiệm gốm Inari</h1>
-        </div>
-
-        <div class="info-section">
-            <div><span class="info-label">Địa chỉ:</span> <span id="address"></span></div>
-            <div><span class="info-label">Số điện thoại:</span> <span id="phone"></span></div>
-            <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
-        </div>
-
-        <table>
-            <thead>
-                <tr>
-                    <th class="stt-col">STT</th>
-                    <th class="image-col">Hình ảnh</th>
-                    <th class="quantity-col">Số lượng</th>
-                    <th class="unit-col">Đơn vị</th>
-                    <th class="price-col">Giá</th>
-                    <th class="total-col">Tổng</th>
-                </tr>
-            </thead>
-            <tbody id="items-tbody">
-            </tbody>
-        </table>
-
-        <div class="total-row">
-            <span id="sub_total"></span>
-        </div>
-
-        <div class="final-total">
-            Tổng + Ship (Free) &nbsp;&nbsp; <span id="grand_total"></span>
-        </div>
-
-        <div class="share-button">
-            <button id="shareBtn" class="share-btn">Share Quotation</button>
-            <div id="message" class="message"></div>
-        </div>
+<div class="container">
+  <div class="share-options">
+    <div class="toggle-option">
+      <input type="checkbox" id="toggleText" checked>
+      <label for="toggleText">Include Text</label>
     </div>
+    <div class="toggle-option">
+      <input type="checkbox" id="toggleImages" checked>
+      <label for="toggleImages">Include Images</label>
+    </div>
+  </div>
+
+  <button id="shareBtn" class="share-btn">Share</button>
+  <div id="message" class="message"></div>
+  <div id="previewText" class="preview-text"></div>
+  <div id="previewImages" class="preview-images"></div>
+</div>
+
+<script>
+  const shareBtn = document.getElementById('shareBtn');
+  const messageDiv = document.getElementById('message');
+
+  // Cache image files to avoid downloading twice (preview + share)
+  let imageFilesCache = null;      // File[]
+  let imageFilesPromise = null;    // Promise<File[]>
+
+  // Check if Web Share API is supported
+  if (!navigator.share) {
+    shareBtn.disabled = true;
+    showMessage('Native sharing is not supported on this device/browser', 'error');
+  }
+
+  function getMessageFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get('m');
+    return m ? decodeURIComponent(m) : '';
+  }
+
+  async function renderPreviewImages() {
+    const wrap = document.getElementById('previewImages');
+    if (!wrap) return;
+
+    wrap.innerHTML = '';
+
+    const imageFiles = await getImageFilesOnce();
+
+    if (!imageFiles.length) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    wrap.style.display = 'grid';
+
+    imageFiles.forEach((file, idx) => {
+      const item = document.createElement('div');
+      item.className = 'img-wrap';
+
+      const badge = document.createElement('div');
+      badge.className = 'img-badge';
+      badge.textContent = `${idx + 1}`;
+
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = `preview-${idx + 1}`;
+
+      img.src = URL.createObjectURL(file);
+
+      item.appendChild(img);
+      item.appendChild(badge);
+      wrap.appendChild(item);
+    });
+  }
+
+  // Parse URL query parameter to get image URLs
+  function getImageUrlsFromQuery() {
+    // Get the full query string after '?q='
+    const fullUrl = window.location.href;
+    const qIndex = fullUrl.indexOf('?q=');
+
+    if (qIndex === -1) {
+      return [];
+    }
+
+    // Get everything after '?q='
+    const qParam = fullUrl.substring(qIndex + 3);  // +3 to skip '?q='
+
+    // Decode the parameter value
+    const decodedParam = decodeURIComponent(qParam);
+
+    // Split by comma (with optional surrounding spaces) and trim whitespace
+    // The URLs should be properly separated by commas in the original link
+    const urls = decodedParam
+            .split(/\s*,\s*/)  // Split by comma with optional whitespace
+            .map(url => url.trim())
+            .filter(url => url.length > 0 && url.startsWith('http'));  // Validate URLs
+
+    return urls;
+  }
+
+  function renderPreviewMessage() {
+    const previewEl = document.getElementById('previewText');
+    if (!previewEl) return;
+
+    const raw = getMessageFromQuery();
+
+    previewEl.textContent = raw || '(No share text)';
+  }
+
+  // Fetch image from URL and convert to File object
+  async function fetchImageAsFile(imageUrl, index) {
+    console.log(`Fetching image ${index + 1}:`, imageUrl);
+
+    try {
+      // Try to fetch the image
+      const response = await fetch(imageUrl, {
+        mode: 'cors',
+        cache: 'no-cache',
+        credentials: 'omit'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error('Received empty image data');
+      }
+
+      // Extract filename from URL params or use default
+      let filename = `image-${index + 1}.jpg`;
+
+      // Try to extract filename from URL
+      try {
+        const urlObj = new URL(imageUrl);
+        const fileNameParam = urlObj.searchParams.get('fileName');
+        if (fileNameParam) {
+          // Extract just the filename without path
+          const parts = fileNameParam.split('/');
+          filename = parts[parts.length - 1];
+          // Decode URL encoding (e.g., %2F -> /)
+          filename = decodeURIComponent(filename);
+        }
+      } catch (urlError) {
+        console.warn('Could not parse filename from URL:', urlError);
+      }
+
+      // Determine file type from blob or default to jpeg
+      let fileType = blob.type;
+      if (!fileType || fileType === 'application/octet-stream') {
+        // Try to guess from filename extension
+        const ext = filename.split('.').pop().toLowerCase();
+        const mimeTypes = {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'webp': 'image/webp'
+        };
+        fileType = mimeTypes[ext] || 'image/jpeg';
+      }
+
+      // Create File object from Blob
+      const file = new File([blob], filename, { type: fileType });
+
+      return file;
+    } catch (error) {
+      console.error(`Error fetching image ${index + 1} from ${imageUrl}:`, error);
+      throw new Error(`Image ${index + 1}: ${error.message}`);
+    }
+  }
+
+  async function getImageFilesOnce() {
+    if (imageFilesCache) return imageFilesCache;
+    if (imageFilesPromise) return imageFilesPromise;
+
+    const imageUrls = getImageUrlsFromQuery();
+    if (imageUrls.length === 0) {
+      imageFilesCache = [];
+      return imageFilesCache;
+    }
+
+    imageFilesPromise = Promise.all(
+            imageUrls.map((url, index) => fetchImageAsFile(url, index))
+    ).then(files => {
+      imageFilesCache = files;
+      return files;
+    }).finally(() => {
+      imageFilesPromise = null;
+    });
+
+    return imageFilesPromise;
+  }
+
+
+  shareBtn.addEventListener('click', async () => {
+    try {
+      const includeText = document.getElementById('toggleText').checked;
+      const includeImages = document.getElementById('toggleImages').checked;
+
+      // Check if at least one option is selected
+      if (!includeText && !includeImages) {
+        showMessage('Please select at least one option to share', 'error');
+        return;
+      }
+
+      const shareData = {};
+      let itemsToShare = [];
+
+      // Handle text
+      if (includeText) {
+        const messageFromUrl = getMessageFromQuery();
+        if (messageFromUrl) {
+          shareData.text = messageFromUrl;
+          itemsToShare.push('text');
+        }
+      }
+
+      // Handle images
+      if (includeImages) {
+        const imageUrls = getImageUrlsFromQuery();
+
+        if (imageUrls.length > 0) {
+          showMessage(`Loading ${imageUrls.length} image(s)...`, 'info');
+
+          // Fetch all images and convert to File objects
+          let imageFiles;
+          try {
+            imageFiles = await getImageFilesOnce();
+          } catch (fetchError) {
+            console.error('Fetch error:', fetchError);
+            showMessage('Failed to load images: ' + fetchError.message, 'error');
+            return;
+          }
+
+          shareData.files = imageFiles;
+          itemsToShare.push(`${imageFiles.length} image(s)`);
+        }
+      }
+
+      // Check if there's anything to share
+      if (!shareData.text && !shareData.files) {
+        showMessage('Nothing to share. Add content via URL parameters', 'error');
+        return;
+      }
+
+      // Set title based on what's being shared
+      if (shareData.files && shareData.text) {
+        shareData.title = 'Sharing content';
+      } else if (shareData.files) {
+        shareData.title = '';
+      } else {
+        shareData.title = 'Sharing text';
+      }
+
+      // Check if files can be shared
+      if (navigator.canShare && !navigator.canShare(shareData)) {
+        console.error('Cannot share:', shareData);
+        showMessage('Your browser cannot share this content', 'error');
+        return;
+      }
+
+      // Trigger native share dialog
+      await navigator.share(shareData);
+      showMessage(`Shared ${itemsToShare.join(' + ')} successfully!`, 'success');
+    } catch (error) {
+      // User cancelled or error occurred
+      if (error.name === 'AbortError') {
+        showMessage('Share cancelled', 'info');
+      } else {
+        showMessage('Error: ' + error.message, 'error');
+        console.error('Error sharing:', error);
+      }
+    }
+  });
+
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = 'message ' + type;
+
+    // Auto-hide success/info messages after 3 seconds
+    if (type === 'success' || type === 'info') {
+      setTimeout(() => {
+        messageDiv.className = 'message';
+      }, 3000);
+    }
+  }
+
+  // Handle toggle changes
+  function updateToggleStates() {
+    const toggleText = document.getElementById('toggleText');
+    const toggleImages = document.getElementById('toggleImages');
+    const messageFromUrl = getMessageFromQuery();
+    const imageUrls = getImageUrlsFromQuery();
+
+    // Disable text toggle if no text available
+    if (!messageFromUrl) {
+      toggleText.disabled = true;
+      toggleText.checked = false;
+    }
+
+    // Disable images toggle if no images available
+    if (imageUrls.length === 0) {
+      toggleImages.disabled = true;
+      toggleImages.checked = false;
+    }
+  }
+
+  // Display loaded URLs on page load
+  window.addEventListener('DOMContentLoaded', () => {
+    const imageUrls = getImageUrlsFromQuery();
+    const messageFromUrl = getMessageFromQuery();
+
+    updateToggleStates();
+
+    let parts = [];
+    if (messageFromUrl) parts.push('text');
+    if (imageUrls.length > 0) parts.push(`${imageUrls.length} image(s)`);
+
+    if (parts.length > 0) {
+      showMessage(`Ready to share ${parts.join(' + ')}`, 'info');
+    } else {
+      showMessage('Add content using ?m=text or ?q=imageUrls', 'info');
+    }
+
+    renderPreviewMessage();
+    renderPreviewImages();
+  });
+</script>
 </body>
 </html>
