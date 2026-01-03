@@ -529,6 +529,18 @@
                     // Detect mobile devices
                     const isMobile = window.innerWidth <= 768;
 
+                    // Store original styles
+                    const tableWrapper = document.querySelector('.table-wrapper');
+                    const table = document.querySelector('table');
+                    const originalWrapperOverflow = tableWrapper.style.overflow;
+                    const originalTableMinWidth = table.style.minWidth;
+
+                    // Temporarily remove scroll and allow full table width for capture
+                    if (isMobile) {
+                        tableWrapper.style.overflow = 'visible';
+                        table.style.minWidth = 'auto';
+                    }
+
                     // Get current container dimensions
                     const currentWidth = container.offsetWidth;
 
@@ -555,6 +567,12 @@
                         width: currentWidth,
                         windowWidth: currentWidth
                     });
+
+                    // Restore original table styles
+                    if (isMobile) {
+                        tableWrapper.style.overflow = originalWrapperOverflow;
+                        table.style.minWidth = originalTableMinWidth;
+                    }
 
                     // Show the share button and logo again
                     if (shareButtonDiv) {
@@ -684,8 +702,8 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">        
-            <img src="logo.svg" alt="Tiệm gốm Inari Logo" class="logo">
+        <div class="header">
+            <img src="logo.svg" alt="Tiệm gốm Inari Logo" class="logo">        
             <h1 class="store-name">Tiệm gốm Inari</h1>
         </div>
 
