@@ -13,7 +13,7 @@
 
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
+            padding: 10px;
             background-color: #f5f5f5;
         }
 
@@ -21,8 +21,42 @@
             max-width: 1200px;
             margin: 0 auto;
             background-color: white;
-            padding: 30px;
+            padding: 20px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .store-name {
+                font-size: 1.8em !important;
+            }
+
+            .info-section div {
+                font-size: 0.9em !important;
+                word-break: break-word;
+            }
+
+            th, td {
+                font-size: 0.85em;
+                padding: 8px 4px;
+            }
+
+            .product-image {
+                width: 80px !important;
+                height: 80px !important;
+            }
+
+            .total-row, .final-total {
+                font-size: 1em !important;
+                padding: 10px !important;
+            }
         }
 
         .header {
@@ -65,8 +99,15 @@
             font-weight: bold;
         }
 
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         table {
             width: 100%;
+            min-width: 600px;
             border-collapse: collapse;
             margin-top: 20px;
         }
@@ -75,6 +116,7 @@
             border: 1px solid #333;
             padding: 12px;
             text-align: center;
+            white-space: nowrap;
         }
 
         th {
@@ -87,6 +129,17 @@
             width: 120px;
             height: 120px;
             object-fit: cover;
+        }
+
+        @media (max-width: 768px) {
+            table {
+                min-width: 500px;
+            }
+
+            th, td {
+                white-space: normal;
+                word-break: break-word;
+            }
         }
 
         .total-row {
@@ -182,25 +235,49 @@
     <script>
         // Parse URL parameters
         function getUrlParams() {
-            // Get the raw query string to handle image URLs with & characters
-            const queryString = window.location.search.substring(1);
+            // Get the full URL to handle proper decoding on all browsers
+            const fullUrl = window.location.href;
+            const queryIndex = fullUrl.indexOf('?');
 
-            // Find items_image parameter and extract full URLs
-            const itemsImageMatch = queryString.match(/items_image=([^&]*(?:&(?!(?:address|phone|bank_info|items_info|sub_total|grand_total)=)[^&]*)*)/);
-            let itemsImageValue = '';
-
-            if (itemsImageMatch) {
-                itemsImageValue = decodeURIComponent(itemsImageMatch[1]);
+            if (queryIndex === -1) {
+                return {
+                    address: '',
+                    phone: '',
+                    bank_info: '',
+                    sub_total: '',
+                    grand_total: '',
+                    items_info: '',
+                    items_image: ''
+                };
             }
 
-            const params = new URLSearchParams(window.location.search);
+            // Helper function to extract parameter value
+            function getParam(paramName) {
+                const paramPattern = new RegExp(`[?&]${paramName}=([^&]*)`);
+                const match = fullUrl.match(paramPattern);
+                return match ? decodeURIComponent(match[1]) : '';
+            }
+
+            // Special handling for items_image which may contain & characters
+            let itemsImageValue = '';
+            const itemsImageIndex = fullUrl.indexOf('items_image=');
+            if (itemsImageIndex !== -1) {
+                const afterItemsImage = fullUrl.substring(itemsImageIndex + 12); // 12 = 'items_image='.length
+                const endMatch = afterItemsImage.match(/&(sub_total|grand_total)=/);
+                if (endMatch) {
+                    itemsImageValue = decodeURIComponent(afterItemsImage.substring(0, endMatch.index));
+                } else {
+                    itemsImageValue = decodeURIComponent(afterItemsImage);
+                }
+            }
+
             return {
-                address: params.get('address') || '',
-                phone: params.get('phone') || '',
-                bank_info: params.get('bank_info') || '',
-                sub_total: params.get('sub_total') || '',
-                grand_total: params.get('grand_total') || '',
-                items_info: params.get('items_info') || '',
+                address: getParam('address'),
+                phone: getParam('phone'),
+                bank_info: getParam('bank_info'),
+                sub_total: getParam('sub_total'),
+                grand_total: getParam('grand_total'),
+                items_info: getParam('items_info'),
                 items_image: itemsImageValue
             };
         }
@@ -218,8 +295,9 @@
                 // Reconstruct full URLs by looking for URL patterns
                 let imagesArr = [];
                 if (itemsImageStr) {
-                    // Split by the pattern " , " which separates different image URLs
-                    imagesArr = itemsImageStr.split(',').map(s => s.trim());
+                    // Split by comma (with optional spaces) which separates different image URLs
+                    // Handle both " , " and "," formats
+                    imagesArr = itemsImageStr.split(/\s*,\s*/).map(s => s.trim()).filter(s => s.length > 0);
                 }
 
                 return itemsArr.map((itemStr, index) => {
@@ -342,14 +420,18 @@
                         imageUrls.map((url, idx) => fetchImageAsFile(url, idx))
                     );
 
-                    // Create blob URLs and cache everything
-                    imageFiles.forEach((file, idx) => {
+                    // Convert to data URLs instead of blob URLs to avoid tainted canvas
+                    for (const file of imageFiles) {
                         if (file) {
-                            const blobUrl = URL.createObjectURL(file);
+                            const dataUrl = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.readAsDataURL(file);
+                            });
                             imageFilesCache.push(file);
-                            imageBlobUrlsCache.push(blobUrl);
+                            imageBlobUrlsCache.push(dataUrl); // Using data URL instead of blob URL
                         }
-                    });
+                    }
 
                     showMessage('Images loaded successfully!', 'success');
                 }
@@ -412,27 +494,56 @@
                 try {
                     showMessage('Creating quotation image...', 'info');
 
-                    // Hide the share button during capture
+                    // Hide the share button and logo during capture
                     const shareButtonDiv = document.querySelector('.share-button');
+                    const logoImg = document.querySelector('.logo');
+
                     if (shareButtonDiv) {
                         shareButtonDiv.style.display = 'none';
                     }
+                    if (logoImg) {
+                        logoImg.style.display = 'none';
+                    }
 
-                    // Wait a bit for images to fully render
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Fix container width for consistent capture
+                    const originalMaxWidth = container.style.maxWidth;
+                    const originalWidth = container.style.width;
+                    container.style.maxWidth = '1200px';
+                    container.style.width = '1200px';
 
-                    // Now capture with html2canvas - images are already cached as blob URLs
+                    // Wait for data URL images to fully load
+                    const images = container.querySelectorAll('.product-image');
+                    await Promise.all(Array.from(images).map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(resolve => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+                    }));
+
+                    // Wait a bit more for layout to settle
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    // Now capture with html2canvas - images are data URLs
                     const canvas = await html2canvas(container, {
                         backgroundColor: '#ffffff',
                         scale: 2,
-                        logging: false,
+                        logging: true,
                         useCORS: false,
-                        allowTaint: true
+                        allowTaint: true,
+                        width: 1200
                     });
 
-                    // Show the share button again
+                    // Restore original styles
+                    container.style.maxWidth = originalMaxWidth;
+                    container.style.width = originalWidth;
+
+                    // Show the share button and logo again
                     if (shareButtonDiv) {
                         shareButtonDiv.style.display = 'block';
+                    }
+                    if (logoImg) {
+                        logoImg.style.display = 'block';
                     }
 
                     // Convert canvas to blob
@@ -556,7 +667,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="logo.svg" alt="Tiệm gốm Inari Logo" class="logo">
+            <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIj48ZWxsaXBzZSBjeD0iMTAwIiBjeT0iMTIwIiByeD0iMzUiIHJ5PSI1MCIgZmlsbD0id2hpdGUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMiIvPjxlbGxpcHNlIGN4PSIxMjAiIGN5PSI3NSIgcng9IjI4IiByeT0iMzAiIGZpbGw9IndoaXRlIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNIDEzNSA3NSBMIDE1MCA4MCBMIDE0NSA4NSBaIiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iODIiIHI9IjMiIGZpbGw9ImJsYWNrIi8+PGVsbGlwc2UgY3g9IjEyNSIgY3k9IjcyIiByeD0iOCIgcnk9IjYiIGZpbGw9IndoaXRlIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSIxMjciIGN5PSI3MiIgcj0iMiIgZmlsbD0iYmxhY2siLz48cGF0aCBkPSJNIDExMCA1MCBMIDY1IDMwIEwgMTE1IDQ1IFoiIGZpbGw9IndoaXRlIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNIDEwNSAzMCBMIDEwNyAzOCBMIDExMyAzNSBaIiBmaWxsPSIjYzQ0Ii8+PHBhdGggZD0iTSAxMzAgNDggTCAxMzUgMjggTCAxMjUgNDMgWiIgZmlsbD0id2hpdGUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0gMTM1IDI4IEwgMTMzIDM2IEwgMTI3IDMzIFoiIGZpbGw9IiNjNDQiLz48ZWxsaXBzZSBjeD0iNzAiIGN5PSIxMDAiIHJ4PSIyNSIgcnk9IjQ1IiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIiB0cmFuc2Zvcm09InJvdGF0ZSgtMjAgNzAgMTAwKSIvPjxnIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMSIgb3BhY2l0eT0iMC4zIj48bGluZSB4MT0iNjAiIHkxPSI3MCIgeDI9IjU4IiB5Mj0iNzUiLz48bGluZSB4MT0iNjUiIHkxPSI2OCIgeDI9IjYzIiB5Mj0iNzMiLz48bGluZSB4MT0iNzAiIHkxPSI2NyIgeDI9IjY4IiB5Mj0iNzIiLz48bGluZSB4MT0iNzUiIHkxPSI2OCIgeDI9IjczIiB5Mj0iNzMiLz48bGluZSB4MT0iNjIiIHkxPSI4MCIgeDI9IjYwIiB5Mj0iODUiLz48bGluZSB4MT0iNjciIHkxPSI3OCIgeDI9IjY1IiB5Mj0iODMiLz48bGluZSB4MT0iNzIiIHkxPSI3NyIgeDI9IjcwIiB5Mj0iODIiLz48bGluZSB4MT0iNzciIHkxPSI3OCIgeDI9Ijc1IiB5Mj0iODMiLz48bGluZSB4MT0iNjQiIHkxPSI5MCIgeDI9IjYyIiB5Mj0iOTUiLz48bGluZSB4MT0iNjkiIHkxPSI4OCIgeDI9IjY3IiB5Mj0iOTMiLz48bGluZSB4MT0iNzQiIHkxPSI4NyIgeDI9IjcyIiB5Mj0iOTIiLz48bGluZSB4MT0iNjYiIHkxPSIxMDAiIHgyPSI2NCIgeTI9IjEwNSIvPjxsaW5lIHgxPSI3MSIgeTE9Ijk4IiB4Mj0iNjkiIHkyPSIxMDMiLz48bGluZSB4MT0iNjgiIHkxPSIxMTAiIHgyPSI2NiIgeTI9IjExNSIvPjxsaW5lIHgxPSI3MyIgeTE9IjEwOCIgeDI9IjcxIiB5Mj0iMTEzIi8+PGxpbmUgeDE9IjcwIiB5MT0iMTIwIiB4Mj0iNjgiIHkyPSIxMjUiLz48L2c+PHBhdGggZD0iTSAxMDUgOTAgUSAxMTAgODUgMTIwIDg3IEwgMTI1IDk1IEwgMTIwIDEzMCBMIDEwNSAxMjUgTCAxMDIgMTAwIFoiIGZpbGw9IiNjNDQiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0gMTA1IDkwIFEgOTggOTIgOTUgMTAwIEwgMTAyIDEwMCBaIiBmaWxsPSIjYzQ0IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSI5NSIgeT0iMTU1IiB3aWR0aD0iMTIiIGhlaWdodD0iMjUiIHJ4PSI2IiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIi8+PGVsbGlwc2UgY3g9IjEwMSIgY3k9IjE4MCIgcng9IjciIHJ5PSI0IiBmaWxsPSJibGFjayIvPjxyZWN0IHg9IjExMyIgeT0iMTU1IiB3aWR0aD0iMTIiIGhlaWdodD0iMjUiIHJ4PSI2IiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIi8+PGVsbGlwc2UgY3g9IjExOSIgY3k9IjE4MCIgcng9IjciIHJ5PSI0IiBmaWxsPSJibGFjayIvPjwvZz48dGV4dCB4PSIxMDAiIHk9IjIxMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjYzQ0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj50aWVtZ29tLmluYXJpPC90ZXh0PjxjaXJjbGUgY3g9IjEyNyIgY3k9IjIwNyIgcj0iMiIgZmlsbD0iI2M0NCIvPjxjaXJjbGUgY3g9IjE4MCIgY3k9IjIwNyIgcj0iMiIgZmlsbD0iI2M0NCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjA3IiByPSIyIiBmaWxsPSIjYzQ0Ii8+PC9zdmc+" alt="Tiệm gốm Inari Logo" class="logo">
             <h1 class="store-name">Tiệm gốm Inari</h1>
         </div>
 
@@ -566,20 +677,22 @@
             <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th class="stt-col">STT</th>
-                    <th class="image-col">Hình ảnh</th>
-                    <th class="quantity-col">Số lượng</th>
-                    <th class="unit-col">Đơn vị</th>
-                    <th class="price-col">Giá</th>
-                    <th class="total-col">Tổng</th>
-                </tr>
-            </thead>
-            <tbody id="items-tbody">
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="stt-col">STT</th>
+                        <th class="image-col">Hình ảnh</th>
+                        <th class="quantity-col">Số lượng</th>
+                        <th class="unit-col">Đơn vị</th>
+                        <th class="price-col">Giá</th>
+                        <th class="total-col">Tổng</th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody">
+                </tbody>
+            </table>
+        </div>
 
         <div class="total-row">
             <span id="sub_total"></span>
