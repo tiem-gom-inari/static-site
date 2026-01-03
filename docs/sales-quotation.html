@@ -118,6 +118,17 @@
     <script>
         // Parse URL parameters
         function getUrlParams() {
+            // Get the raw query string to handle image URLs with & characters
+            const queryString = window.location.search.substring(1);
+
+            // Find items_image parameter and extract full URLs
+            const itemsImageMatch = queryString.match(/items_image=([^&]*(?:&(?!(?:address|phone|bank_info|items_info|sub_total|grand_total)=)[^&]*)*)/);
+            let itemsImageValue = '';
+
+            if (itemsImageMatch) {
+                itemsImageValue = decodeURIComponent(itemsImageMatch[1]);
+            }
+
             const params = new URLSearchParams(window.location.search);
             return {
                 address: params.get('address') || '',
@@ -126,7 +137,7 @@
                 sub_total: params.get('sub_total') || '',
                 grand_total: params.get('grand_total') || '',
                 items_info: params.get('items_info') || '',
-                items_image: params.get('items_image') || ''
+                items_image: itemsImageValue
             };
         }
 
@@ -138,7 +149,14 @@
             try {
                 // Split items by comma
                 const itemsArr = itemsInfoStr.split(' , ').map(s => s.trim());
-                const imagesArr = itemsImageStr ? itemsImageStr.split(' , ').map(s => s.trim()) : [];
+
+                // For image URLs, we need to handle the case where & characters might be split
+                // Reconstruct full URLs by looking for URL patterns
+                let imagesArr = [];
+                if (itemsImageStr) {
+                    // Split by the pattern " , " which separates different image URLs
+                    imagesArr = itemsImageStr.split(' , ').map(s => s.trim());
+                }
 
                 return itemsArr.map((itemStr, index) => {
                     const item = {};
@@ -147,9 +165,11 @@
                     const pairs = itemStr.split('|');
 
                     pairs.forEach(pair => {
-                        const [key, value] = pair.split(':');
-                        if (key && value !== undefined) {
-                            item[key.trim()] = value.trim();
+                        const colonIndex = pair.indexOf(':');
+                        if (colonIndex > 0) {
+                            const key = pair.substring(0, colonIndex).trim();
+                            const value = pair.substring(colonIndex + 1).trim();
+                            item[key] = value;
                         }
                     });
 
