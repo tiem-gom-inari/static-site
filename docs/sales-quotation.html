@@ -488,6 +488,17 @@
                 const subTotal = params.sub_total ? parseInt(params.sub_total) : calculatedTotal;
                 const grandTotal = params.grand_total ? parseInt(params.grand_total) : subTotal;
 
+                const discount = subTotal - grandTotal;
+
+                if (discount > 0) {
+                    document.getElementById("discount").textContent =
+                        "- " + formatCurrency(discount) + " đ";
+                } else {
+                    // remove the row if discount <= 0
+                    const row = document.getElementById("discount-row");
+                    if (row) row.remove();
+                }
+
                 document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
                 document.getElementById('grand_total').textContent = `${formatCurrency(grandTotal)} đ`;
             } else if (params.sub_total && params.grand_total) {
@@ -749,6 +760,10 @@
         <div class="total-row">
             <span id="sub_total"></span>
         </div>
+
+        <div id="discount-row" class="discount-row">
+            Discount: <span id="discount"></span>
+        </div>     
 
         <div class="final-total">
             Tổng + Ship (Free) &nbsp;&nbsp; <span id="grand_total"></span>
