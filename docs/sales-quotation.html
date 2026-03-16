@@ -511,6 +511,16 @@
                     if (row) row.remove();
                 }
 
+                if (subTotal < grandTotal) {
+                
+                    // hide subtotal
+                    document.querySelector(".total-row").style.display = "none";
+                
+                    // hide price column (5th column)
+                    document.querySelectorAll("th.price-col, td:nth-child(5)")
+                        .forEach(el => el.style.display = "none");
+                }                
+
                 document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
                 document.getElementById('grand_total').textContent = `${formatCurrency(grandTotal)} đ`;
             } else if (params.sub_total && params.grand_total) {
