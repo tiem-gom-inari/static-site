@@ -516,11 +516,21 @@
                     // hide subtotal
                     document.querySelector(".total-row").style.display = "none";
 
-                    // remove column cells (5th and 6th columns)
-                    document.querySelectorAll("#items-tbody tr").forEach(row => {
-                        if (row.children[4]) row.children[4].textContent = ''; // price
-                        if (row.children[5]) row.children[5].textContent = ''; // total (index shifts after remove)
-                    });
+                    if (items.length === 1) {
+                    
+                        const priceCell = document.querySelector("#items-tbody tr td:nth-child(5)");
+                        const totalCell = document.querySelector("#items-tbody tr td:nth-child(6)");
+                    
+                        priceCell.textContent = formatCurrency(grandTotal) + " đ";
+                        totalCell.textContent = formatCurrency(grandTotal) + " đ";
+                    
+                    } else {
+                        document.querySelectorAll("#items-tbody tr").forEach(row => {
+                            if (row.children[4]) row.children[4].textContent = ''; // price
+                            if (row.children[5]) row.children[5].textContent = ''; // total (index shifts after remove)
+                        });
+                    }
+        
                 }                
 
                 document.getElementById('sub_total').textContent = `${formatCurrency(subTotal)} đ`;
