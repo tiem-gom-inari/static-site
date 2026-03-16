@@ -515,14 +515,11 @@
                 
                     // hide subtotal
                     document.querySelector(".total-row").style.display = "none";
-                
-                    // hide price column (5th column)
-                    document.querySelectorAll(".price-col, .total-col").forEach(el => el.remove());
-                
+
                     // remove column cells (5th and 6th columns)
                     document.querySelectorAll("#items-tbody tr").forEach(row => {
-                        if (row.children[4]) row.children[4].remove(); // price
-                        if (row.children[4]) row.children[4].remove(); // total (index shifts after remove)
+                        if (row.children[4]) row.children[4].textContent = ''; // price
+                        if (row.children[5]) row.children[5].textContent = ''; // total (index shifts after remove)
                     });
                 }                
 
