@@ -343,10 +343,11 @@ function parseUrlParams() {
             'product_name','product_thumbnail'
         ];
         const getParamFull = (name) => {
-            const marker = `${name}=`;
-            const idx = qs.indexOf(marker);
-            if (idx === -1) return '';
-            const after = qs.substring(idx + marker.length);
+            const re = new RegExp(`[?&]${name}=`);
+            const m  = qs.match(re);
+            if (!m) return '';
+            const idx = m.index;
+            const after = qs.substring(idx + m[0].length);
             // Find the earliest terminator that is another known param
             const terminators = KNOWN_PARAMS
                 .filter(p => p !== name)
