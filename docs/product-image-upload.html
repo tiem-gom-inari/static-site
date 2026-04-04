@@ -28,18 +28,6 @@
             z-index: 100;
         }
 
-        .back-btn {
-            background: none;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 7px 12px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #444;
-            white-space: nowrap;
-        }
-        .back-btn:hover { background: #f5f5f5; }
-
         .header-info { flex: 1; min-width: 0; }
         .header-title { font-size: 15px; font-weight: 700; }
         .header-subtitle { font-size: 12px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -174,6 +162,42 @@
         }
         .summary-bar.hidden { display: none; }
 
+        /* ── Product info box ───────────────────────── */
+        .product-box {
+            background: #fff;
+            margin: 14px 16px 0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.08);
+        }
+        .product-box.visible { display: flex; }
+        .product-thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #f0f2f5;
+        }
+        .product-thumb-placeholder {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            background: #f0f2f5;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .product-meta { flex: 1; min-width: 0; }
+        .product-label { font-size: 11px; color: #aaa; margin-bottom: 2px; }
+        .product-name { font-size: 14px; font-weight: 700; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .product-id   { font-size: 11px; color: #888; margin-top: 2px; }
+
         /* ── Action bar ─────────────────────────────── */
         .action-bar {
             position: fixed;
@@ -201,18 +225,20 @@
         .cancel-btn:hover { background: #c5221f; }
         .cancel-btn:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
 
-        .back-action-btn {
+        .start-btn {
             flex: 1;
-            background: #f1f3f4;
-            color: #444;
+            background: #34a853;
+            color: #fff;
             border: none;
             border-radius: 10px;
             padding: 12px;
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
+            transition: background .2s;
         }
-        .back-action-btn:hover { background: #e2e5e8; }
+        .start-btn:hover { background: #2d9146; }
+        .start-btn:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
 
         .bottom-spacer { height: 120px; }
     </style>
@@ -221,7 +247,6 @@
 
 <!-- ── Header ───────────────────────────────────────────── -->
 <div class="header">
-    <button class="back-btn" onclick="goBack()">&#8592; Quay lại</button>
     <div class="header-info">
         <div class="header-title">Upload ảnh sản phẩm</div>
         <div class="header-subtitle" id="headerSubtitle">Đang tải...</div>
@@ -243,6 +268,17 @@
         </svg>
         Đăng nhập với Google
     </button>
+</div>
+
+<!-- ── Product info box ─────────────────────────────────── -->
+<div class="product-box" id="productBox">
+    <div class="product-thumb-placeholder" id="productThumbPlaceholder">📦</div>
+    <img class="product-thumb" id="productThumb" style="display:none" alt="Ảnh sản phẩm">
+    <div class="product-meta">
+        <div class="product-label">Sản phẩm</div>
+        <div class="product-name" id="productName">—</div>
+        <div class="product-id"   id="productIdDisplay"></div>
+    </div>
 </div>
 
 <!-- ── Select images button ──────────────────────────────── -->
@@ -272,8 +308,8 @@
 
 <!-- ── Action bar ────────────────────────────────────────── -->
 <div class="action-bar hidden" id="actionBar">
-    <button class="cancel-btn" id="cancelBtn" onclick="cancelAll()">⛔ Hủy tất cả</button>
-    <button class="back-action-btn" onclick="goBack()">&#8592; Về ứng dụng</button>
+    <button class="start-btn"  id="startBtn"  onclick="startUpload()" disabled>▶ Bắt đầu tải lên</button>
+    <button class="cancel-btn" id="cancelBtn" onclick="cancelAll()" disabled>⛔ Hủy tất cả</button>
 </div>
 
 <script>
@@ -282,14 +318,7 @@
 // ═══════════════════════════════════════════════════════════
 const MAX_CONCURRENT    = 3;   // parallel uploads
 
-// AppSheet table column names — adjust to match your schema
-const COL = {
-    product_id : 'ProductID',
-    image_url  : 'ImageURL',
-    file_name  : 'FileName',
-    drive_id   : 'DriveFileID',
-    uploaded_at: 'UploadedAt'
-};
+// AppSheet table column names — loaded from URL params at runtime (see parseUrlParams)
 
 // ═══════════════════════════════════════════════════════════
 //  PARSE URL PARAMS
@@ -302,24 +331,44 @@ function parseUrlParams() {
     const url = window.location.href;
     const qi  = url.indexOf('?');
 
-    const getParam = (name, src) => {
-        const re = new RegExp(`[?&]${name}=([^&]*)`);
-        const m  = src.match(re);
-        if (!m) return '';
-        try { return decodeURIComponent(m[1]); } catch { return m[1]; }
-    };
-
     if (qi !== -1) {
         // URL has params — parse and persist to sessionStorage
         const qs = url.substring(qi);
+
+        // Special extractor for params whose value may contain & (e.g. AppSheet image URLs).
+        // Reads from the param name up to the next known param name or end of string.
+        const KNOWN_PARAMS = [
+            'google_client_id','appsheet_key','app_id','product_id','folder_id',
+            'image_folder','table_name','col_product_id','col_image',
+            'product_name','product_thumbnail'
+        ];
+        const getParamFull = (name) => {
+            const marker = `${name}=`;
+            const idx = qs.indexOf(marker);
+            if (idx === -1) return '';
+            const after = qs.substring(idx + marker.length);
+            // Find the earliest terminator that is another known param
+            const terminators = KNOWN_PARAMS
+                .filter(p => p !== name)
+                .map(p => after.indexOf(`&${p}=`))
+                .filter(i => i !== -1);
+            const end = terminators.length ? Math.min(...terminators) : after.length;
+            const raw = after.substring(0, end);
+            try { return decodeURIComponent(raw); } catch { return raw; }
+        };
+
         const parsed = {
-            google_client_id: getParam('google_client_id', qs),
-            appsheet_key    : getParam('appsheet_key',     qs),
-            app_id          : getParam('app_id',           qs),
-            product_id      : getParam('product_id',       qs),
-            folder_id       : getParam('folder_id',        qs),
-            table_name      : getParam('table_name',       qs) || 'ProductImages',
-            back_url        : getParam('back_url',         qs)
+            google_client_id : getParamFull('google_client_id'),
+            appsheet_key     : getParamFull('appsheet_key'),
+            app_id           : getParamFull('app_id'),
+            product_id       : getParamFull('product_id'),
+            folder_id        : getParamFull('folder_id'),
+            image_folder     : getParamFull('image_folder'),
+            table_name       : getParamFull('table_name') || 'Attachment',
+            col_product_id   : getParamFull('col_product_id') || 'ProductId',
+            col_image        : getParamFull('col_image') || 'Image',
+            product_name     : getParamFull('product_name'),
+            product_thumbnail: getParamFull('product_thumbnail')
         };
         // Persist so data survives an OAuth redirect if it ever happens
         try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(parsed)); } catch (_) {}
@@ -350,6 +399,33 @@ let nextId       = 0;
 let globalCancel = false;
 
 // ═══════════════════════════════════════════════════════════
+//  TOKEN PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+const TOKEN_KEY = 'gd_upload_token';
+
+function saveToken(token, expiresIn) {
+    try {
+        localStorage.setItem(TOKEN_KEY, JSON.stringify({
+            token,
+            expiry: Date.now() + (expiresIn - 120) * 1000  // subtract 2 min buffer
+        }));
+    } catch (_) {}
+}
+
+function loadToken() {
+    try {
+        const raw = localStorage.getItem(TOKEN_KEY);
+        if (!raw) return null;
+        const { token, expiry } = JSON.parse(raw);
+        return Date.now() < expiry ? token : null;
+    } catch (_) { return null; }
+}
+
+function clearToken() {
+    try { localStorage.removeItem(TOKEN_KEY); } catch (_) {}
+}
+
+// ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
 window.addEventListener('load', () => {
@@ -358,14 +434,26 @@ window.addEventListener('load', () => {
         ? `Sản phẩm: ${PARAMS.product_id}`
         : 'Không có thông tin sản phẩm';
 
-    // Wait for Google Identity Services to load
+    // Check for a saved valid token first
+    const saved = loadToken();
+    if (saved) {
+        accessToken = saved;
+        document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('uploadArea').style.display = 'block';
+        document.getElementById('actionBar').classList.remove('hidden');
+        showProductBox();
+    }
+
+    // Always init GIS so we can refresh silently when needed
     const waitGsi = setInterval(() => {
         if (typeof google !== 'undefined' && google.accounts) {
             clearInterval(waitGsi);
             if (!PARAMS.google_client_id) {
-                document.getElementById('authSection').innerHTML =
-                    '<div class="auth-icon">⚠️</div>' +
-                    '<div class="auth-desc">Thiếu tham số <b>google_client_id</b> trong URL.<br>Vui lòng kiểm tra lại nút AppSheet.</div>';
+                if (!saved) {
+                    document.getElementById('authSection').innerHTML =
+                        '<div class="auth-icon">⚠️</div>' +
+                        '<div class="auth-desc">Thiếu tham số <b>google_client_id</b> trong URL.<br>Vui lòng kiểm tra lại nút AppSheet.</div>';
+                }
                 return;
             }
             tokenClient = google.accounts.oauth2.initTokenClient({
@@ -373,6 +461,10 @@ window.addEventListener('load', () => {
                 scope    : 'https://www.googleapis.com/auth/drive.file',
                 callback : onTokenReceived
             });
+            // If no saved token, try silent refresh (no popup if already granted)
+            if (!saved) {
+                tokenClient.requestAccessToken({ prompt: '' });
+            }
         }
     }, 100);
 });
@@ -382,14 +474,38 @@ window.addEventListener('load', () => {
 // ═══════════════════════════════════════════════════════════
 function signIn() {
     if (!tokenClient) { alert('Google Sign-In chưa sẵn sàng, thử lại sau giây lát.'); return; }
-    tokenClient.requestAccessToken();
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
 function onTokenReceived(resp) {
-    if (resp.error) { alert('Đăng nhập thất bại: ' + resp.error); return; }
+    if (resp.error) {
+        // Silent refresh failed — show login button so user can click manually
+        if (resp.error === 'interaction_required' || resp.error === 'access_denied') return;
+        alert('Đăng nhập thất bại: ' + resp.error);
+        return;
+    }
     accessToken = resp.access_token;
+    saveToken(resp.access_token, resp.expires_in || 3600);
     document.getElementById('authSection').classList.add('hidden');
     document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('actionBar').classList.remove('hidden');
+    showProductBox();
+}
+
+function showProductBox() {
+    const { product_name, product_id, product_thumbnail } = PARAMS;
+    if (!product_name && !product_id) return;
+
+    document.getElementById('productBox').classList.add('visible');
+    document.getElementById('productName').textContent = product_name || product_id;
+    document.getElementById('productIdDisplay').textContent = product_name ? `ID: ${product_id}` : '';
+
+    if (product_thumbnail) {
+        const img = document.getElementById('productThumb');
+        img.src = product_thumbnail;
+        img.style.display = 'block';
+        document.getElementById('productThumbPlaceholder').style.display = 'none';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -400,7 +516,10 @@ async function driveGet(path, signal) {
         headers: { Authorization: `Bearer ${accessToken}` },
         signal
     });
-    if (!r.ok) throw new Error(`Drive error ${r.status}: ${await r.text()}`);
+    if (!r.ok) {
+        if (r.status === 401) { clearToken(); accessToken = null; }
+        throw new Error(`Drive error ${r.status}: ${await r.text()}`);
+    }
     return r.json();
 }
 
@@ -534,21 +653,26 @@ async function makePublic(fileId) {
 //  APPSHEET API
 // ═══════════════════════════════════════════════════════════
 async function addAppSheetRecord(driveFileId, uploadedName) {
-    const { appsheet_key, app_id, product_id, table_name } = PARAMS;
+    const { appsheet_key, app_id, product_id, table_name, image_folder } = PARAMS;
 
     if (!appsheet_key || !app_id) {
         console.warn('[AppSheet] Missing appsheet_key or app_id — skipping record insert.', { appsheet_key, app_id });
         return;
     }
 
-    const imageUrl = `https://drive.google.com/uc?id=${driveFileId}`;
+    // AppSheet Image column expects a relative path: "<image_folder>/yyyy/mm/dd/<filename>"
+    const now  = new Date();
+    const yyyy = String(now.getFullYear());
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const dd   = String(now.getDate()).padStart(2, '0');
+    const datePath  = `${yyyy}/${mm}/${dd}`;
+    const imagePath = image_folder
+        ? `${image_folder}/${datePath}/${uploadedName}`
+        : `${datePath}/${uploadedName}`;
 
     const row = {
-        [COL.product_id] : product_id,
-        [COL.image_url]  : imageUrl,
-        [COL.file_name]  : uploadedName,
-        [COL.drive_id]   : driveFileId,
-        [COL.uploaded_at]: new Date().toISOString()
+        [PARAMS.col_product_id] : product_id,
+        [PARAMS.col_image]      : imagePath
     };
 
     const url  = `https://api.appsheet.com/api/v2/apps/${app_id}/tables/${encodeURIComponent(table_name)}/Action`;
@@ -583,15 +707,13 @@ function handleFilesSelected(files) {
     if (!files || files.length === 0) return;
     globalCancel = false;
     document.getElementById('emptyState')?.remove();
-    document.getElementById('actionBar').classList.remove('hidden');
     document.getElementById('summaryBar').classList.remove('hidden');
-    document.getElementById('cancelBtn').disabled = false;
 
     Array.from(files).forEach(file => {
         const item = {
             id        : nextId++,
             file,
-            status    : 'pending',   // pending | uploading | success | failed | cancelled
+            status    : 'pending',
             controller: null,
             element   : null
         };
@@ -600,7 +722,16 @@ function handleFilesSelected(files) {
         renderCard(item);
     });
 
-    document.getElementById('fileInput').value = ''; // reset so same files can be re-added
+    document.getElementById('fileInput').value = '';
+    document.getElementById('startBtn').disabled = false;
+    updateSummary();
+}
+
+function startUpload() {
+    if (uploadQueue.length === 0 && activeCount === 0) return;
+    document.getElementById('startBtn').disabled  = true;
+    document.getElementById('cancelBtn').disabled = false;
+    globalCancel = false;
     pumpQueue();
 }
 
@@ -778,18 +909,10 @@ function cancelAll() {
         }
     });
     document.getElementById('cancelBtn').disabled = true;
+    document.getElementById('startBtn').disabled  = true;
     updateSummary();
 }
 
-function goBack() {
-    if (PARAMS.back_url) {
-        window.location.href = PARAMS.back_url;
-    } else if (document.referrer) {
-        window.history.back();
-    } else {
-        window.close();
-    }
-}
 </script>
 </body>
 </html>
