@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -279,10 +278,8 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════
-//  CONFIG  — fill in your Google OAuth Client ID
-//            Other settings come from URL params
+//  CONFIG  — all values come from URL params, nothing hardcoded
 // ═══════════════════════════════════════════════════════════
-const GOOGLE_CLIENT_ID  = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 const MAX_CONCURRENT    = 3;   // parallel uploads
 
 // AppSheet table column names — adjust to match your schema
@@ -296,29 +293,46 @@ const COL = {
 
 // ═══════════════════════════════════════════════════════════
 //  PARSE URL PARAMS
-//  Expected: ?appsheet_key=...&app_id=...&product_id=...
-//            &folder_id=...&table_name=...&back_url=...
+//  Expected: ?google_client_id=...&appsheet_key=...&app_id=...
+//            &product_id=...&folder_id=...&table_name=...&back_url=...
 // ═══════════════════════════════════════════════════════════
+const SESSION_KEY = 'upload_params';
+
 function parseUrlParams() {
     const url = window.location.href;
     const qi  = url.indexOf('?');
-    if (qi === -1) return {};
 
-    const getParam = (name) => {
+    const getParam = (name, src) => {
         const re = new RegExp(`[?&]${name}=([^&]*)`);
-        const m  = url.match(re);
+        const m  = src.match(re);
         if (!m) return '';
         try { return decodeURIComponent(m[1]); } catch { return m[1]; }
     };
 
-    return {
-        appsheet_key: getParam('appsheet_key'),
-        app_id      : getParam('app_id'),
-        product_id  : getParam('product_id'),
-        folder_id   : getParam('folder_id'),   // Google Drive root folder ID
-        table_name  : getParam('table_name') || 'ProductImages',
-        back_url    : getParam('back_url')
-    };
+    if (qi !== -1) {
+        // URL has params — parse and persist to sessionStorage
+        const qs = url.substring(qi);
+        const parsed = {
+            google_client_id: getParam('google_client_id', qs),
+            appsheet_key    : getParam('appsheet_key',     qs),
+            app_id          : getParam('app_id',           qs),
+            product_id      : getParam('product_id',       qs),
+            folder_id       : getParam('folder_id',        qs),
+            table_name      : getParam('table_name',       qs) || 'ProductImages',
+            back_url        : getParam('back_url',         qs)
+        };
+        // Persist so data survives an OAuth redirect if it ever happens
+        try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(parsed)); } catch (_) {}
+        return parsed;
+    }
+
+    // No URL params — restore from sessionStorage (e.g. after OAuth redirect)
+    try {
+        const saved = sessionStorage.getItem(SESSION_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch (_) {}
+
+    return {};
 }
 
 const PARAMS = parseUrlParams();
@@ -348,8 +362,14 @@ window.addEventListener('load', () => {
     const waitGsi = setInterval(() => {
         if (typeof google !== 'undefined' && google.accounts) {
             clearInterval(waitGsi);
+            if (!PARAMS.google_client_id) {
+                document.getElementById('authSection').innerHTML =
+                    '<div class="auth-icon">⚠️</div>' +
+                    '<div class="auth-desc">Thiếu tham số <b>google_client_id</b> trong URL.<br>Vui lòng kiểm tra lại nút AppSheet.</div>';
+                return;
+            }
             tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: GOOGLE_CLIENT_ID,
+                client_id: PARAMS.google_client_id,
                 scope    : 'https://www.googleapis.com/auth/drive.file',
                 callback : onTokenReceived
             });
