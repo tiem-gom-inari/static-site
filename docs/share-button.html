@@ -171,10 +171,70 @@
       color: #999;
       cursor: not-allowed;
     }
+
+    .price-selector {
+      margin-bottom: 4px;
+      padding: 12px 14px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .price-selector-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .price-radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .price-radio-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .price-radio-option input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #c9302c;
+    }
+
+    .price-value {
+      font-weight: 600;
+      color: #c9302c;
+    }
   </style>
 </head>
 <body>
 <div class="container">
+  <div id="priceSelector" class="price-selector" style="display:none;">
+    <div class="price-selector-label">Price</div>
+    <div class="price-radio-group">
+      <label class="price-radio-option">
+        <input type="radio" name="priceChoice" value="retail" checked>
+        Giá lẻ: <span class="price-value" id="retailPriceLabel"></span>
+      </label>
+      <label class="price-radio-option">
+        <input type="radio" name="priceChoice" value="wholesale">
+        Giá sỉ: <span class="price-value" id="wholesalePriceLabel"></span>
+      </label>
+    </div>
+  </div>
+
   <div class="share-options">
     <div class="toggle-option">
       <input type="checkbox" id="toggleText" checked>
@@ -210,6 +270,26 @@
     const params = new URLSearchParams(window.location.search);
     const m = params.get('m');
     return m ? decodeURIComponent(m) : '';
+  }
+
+  function getPricesFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const retail = params.get('retail_price');
+    const wholesale = params.get('wholesale_price');
+    return {
+      retail: retail && retail.trim() ? retail.trim() : null,
+      wholesale: wholesale && wholesale.trim() ? wholesale.trim() : null
+    };
+  }
+
+  function getResolvedMessage() {
+    const raw = getMessageFromQuery();
+    const { retail, wholesale } = getPricesFromQuery();
+    if (!retail && !wholesale) return raw;
+
+    const choice = document.querySelector('input[name="priceChoice"]:checked')?.value;
+    const selectedPrice = (choice === 'wholesale' && wholesale) ? wholesale : (retail || wholesale || '');
+    return raw.replace(/HERE_PRICE/g, selectedPrice);
   }
 
   async function renderPreviewImages() {
@@ -276,10 +356,7 @@
   function renderPreviewMessage() {
     const previewEl = document.getElementById('previewText');
     if (!previewEl) return;
-
-    const raw = getMessageFromQuery();
-
-    previewEl.textContent = raw || '(No share text)';
+    previewEl.textContent = getResolvedMessage() || '(No share text)';
   }
 
   // Fetch image from URL and convert to File object
@@ -386,7 +463,7 @@
 
       // Handle text
       if (includeText) {
-        const messageFromUrl = getMessageFromQuery();
+        const messageFromUrl = getResolvedMessage();
         if (messageFromUrl) {
           shareData.text = messageFromUrl;
           itemsToShare.push('text');
@@ -483,11 +560,32 @@
     }
   }
 
+  function initPriceSelector() {
+    const { retail, wholesale } = getPricesFromQuery();
+    if (!retail && !wholesale) return;
+
+    const selector = document.getElementById('priceSelector');
+    selector.style.display = 'flex';
+
+    if (retail) document.getElementById('retailPriceLabel').textContent = retail;
+    if (wholesale) document.getElementById('wholesalePriceLabel').textContent = wholesale;
+
+    // Hide radio option if price is missing
+    if (!retail) selector.querySelector('[value="retail"]').closest('label').style.display = 'none';
+    if (!wholesale) selector.querySelector('[value="wholesale"]').closest('label').style.display = 'none';
+
+    // Re-render preview when price choice changes
+    selector.querySelectorAll('input[name="priceChoice"]').forEach(radio => {
+      radio.addEventListener('change', renderPreviewMessage);
+    });
+  }
+
   // Display loaded URLs on page load
   window.addEventListener('DOMContentLoaded', () => {
     const imageUrls = getImageUrlsFromQuery();
     const messageFromUrl = getMessageFromQuery();
 
+    initPriceSelector();
     updateToggleStates();
 
     let parts = [];
