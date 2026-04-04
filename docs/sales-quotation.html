@@ -176,7 +176,6 @@
         .stt-col { width: 8%; }
         .image-col { width: 20%; }
         .quantity-col { width: 12%; }
-        .unit-col { width: 15%; }
         .price-col { width: 15%; }
         .total-col { width: 20%; }
 
@@ -336,7 +335,8 @@
                 store_url: storeUrlValue,
                 store_name: getParam('store_name'),
                 store_title: getParam('store_title'),
-                store_logo_width: getParam('store_logo_width')
+                store_logo_width: getParam('store_logo_width'),
+                qr_code: getParam('qr_code')
             };
         }
 
@@ -487,6 +487,12 @@
             document.getElementById('phone').textContent = params.phone;
             document.getElementById('bank_info').textContent = params.bank_info;
 
+            if (params.qr_code) {
+                const qrImg = document.getElementById('qr_code');
+                qrImg.src = params.qr_code;
+                qrImg.closest('.qr-section').style.display = 'block';
+            }
+
             // Parse and populate items
             const items = parseItems(params.items_info, params.items_image);
             const tbody = document.getElementById('items-tbody');
@@ -540,7 +546,6 @@
                         <td>${index + 1}</td>
                         <td><img src="${imgSrc}" alt="${item.name || ''}" class="product-image" onerror="this.style.display='none'"></td>
                         <td>${item.quantity || 1}</td>
-                        <td>${item.unit || ''}</td>
                         <td>${formatCurrency(parseInt(item.unit_price) || 0)} đ</td>
                         <td>${formatCurrency(lineTotal)} đ</td>
                     `;
@@ -756,7 +761,7 @@
 
                 // Prepare share data
                 const shareData = {
-                    title: 'Tiệm gốm Inari - Báo giá',
+                    title: document.title || params.store_title || 'Báo giá',
                     files: [imageFile]
                 };
 
@@ -824,6 +829,9 @@
             <div><span class="info-label">Địa chỉ:</span> <span id="address"></span></div>
             <div><span class="info-label">Số điện thoại:</span> <span id="phone"></span></div>
             <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
+            <div class="qr-section" style="display:none; margin-top:10px; text-align:center;">
+                <img id="qr_code" alt="QR thanh toán" style="max-width:180px; width:100%; border-radius:8px;">
+            </div>
         </div>
 
         <div class="table-wrapper">
@@ -833,7 +841,6 @@
                         <th class="stt-col">STT</th>
                         <th class="image-col">Hình ảnh</th>
                         <th class="quantity-col">Số lượng</th>
-                        <th class="unit-col">Đơn vị</th>
                         <th class="price-col">Giá</th>
                         <th class="total-col">Tổng</th>
                     </tr>
