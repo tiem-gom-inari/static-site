@@ -635,16 +635,16 @@
 
                     if (items.length === 1) {
                     
-                        const priceCell = document.querySelector("#items-tbody tr td:nth-child(5)");
-                        const totalCell = document.querySelector("#items-tbody tr td:nth-child(6)");
+                        const priceCell = document.querySelector("#items-tbody tr td:nth-child(4)");
+                        const totalCell = document.querySelector("#items-tbody tr td:nth-child(5)");
                     
                         priceCell.textContent = formatCurrency(grandTotal) + " đ";
                         totalCell.textContent = formatCurrency(grandTotal) + " đ";
                     
                     } else {
                         document.querySelectorAll("#items-tbody tr").forEach(row => {
-                            if (row.children[4]) row.children[4].textContent = ''; // price
-                            if (row.children[5]) row.children[5].textContent = ''; // total (index shifts after remove)
+                            if (row.children[3]) row.children[3].textContent = ''; // price
+                            if (row.children[4]) row.children[4].textContent = ''; // total
                         });
                     }
         
