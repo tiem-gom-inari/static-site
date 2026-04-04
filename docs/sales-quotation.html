@@ -173,12 +173,32 @@
             padding: 15px;
             background-color: #e8f5e9; /* light green background */
         }
-        .bank-qr-row {
+        .info-layout {
             display: flex;
-            align-items: center;
-            gap: 16px;
+            align-items: flex-start;
+            gap: 20px;
         }
-        .bank-qr-row > div { flex: 1; }
+        .info-contact { flex: 1; }
+        .info-qr {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .info-qr.visible { display: flex; }
+        .info-qr-label {
+            font-weight: bold;
+            font-size: 0.95em;
+            color: #444;
+        }
+        .info-qr img {
+            width: 140px;
+            height: 140px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
 
         .stt-col { width: 8%; }
         .image-col { width: 20%; }
@@ -524,7 +544,7 @@
                         reader.onload = function(e) {
                             const qrImg = document.getElementById('qr_code');
                             qrImg.src = e.target.result;
-                            document.querySelector('.qr-section').style.display = 'block';
+                            document.getElementById('qrSection').classList.add('visible');
                         };
                         reader.readAsDataURL(blob);
                     }
@@ -696,10 +716,10 @@
                     // Get capture width
                     const captureWidth = isMobile ? 1200 : container.offsetWidth;
 
-                    // Wait for data URL images to fully load
-                    const images = container.querySelectorAll('.product-image');
+                    // Wait for all images (products, logo, QR) to fully load
+                    const images = container.querySelectorAll('img');
                     await Promise.all(Array.from(images).map(img => {
-                        if (img.complete) return Promise.resolve();
+                        if (!img.src || img.complete) return Promise.resolve();
                         return new Promise(resolve => {
                             img.onload = resolve;
                             img.onerror = resolve;
@@ -866,12 +886,15 @@
         </div>
 
         <div class="info-section">
-            <div><span class="info-label">Địa chỉ:</span> <span id="address"></span></div>
-            <div><span class="info-label">Số điện thoại:</span> <span id="phone"></span></div>
-            <div class="bank-qr-row">
-                <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
-                <div class="qr-section" style="display:none;">
-                    <img id="qr_code" alt="QR thanh toán" style="width:120px; height:120px; object-fit:contain; border-radius:8px;">
+            <div class="info-layout">
+                <div class="info-contact">
+                    <div><span class="info-label">Địa chỉ:</span> <span id="address"></span></div>
+                    <div><span class="info-label">Số điện thoại:</span> <span id="phone"></span></div>
+                    <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
+                </div>
+                <div class="info-qr" id="qrSection">
+                    <span class="info-qr-label">QR Thanh toán</span>
+                    <img id="qr_code" alt="QR thanh toán">
                 </div>
             </div>
         </div>
