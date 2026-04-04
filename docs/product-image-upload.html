@@ -345,7 +345,7 @@ let tokenClient  = null;
 let allItems     = [];        // all upload items ever added
 let uploadQueue  = [];        // items yet to start
 let activeCount  = 0;
-let folderCache  = new Map(); // path → Drive folder id
+let folderCache  = new Map(); // key → folder id OR in-flight Promise<id>
 let nextId       = 0;
 let globalCancel = false;
 
@@ -415,28 +415,37 @@ async function drivePost(path, body, signal) {
     return r.json();
 }
 
-async function getOrCreateFolder(parentId, name, signal) {
+function getOrCreateFolder(parentId, name, signal) {
     const key = `${parentId}::${name}`;
-    if (folderCache.has(key)) return folderCache.get(key);
 
-    const q = encodeURIComponent(
-        `'${parentId}' in parents and name='${name}' ` +
-        `and mimeType='application/vnd.google-apps.folder' and trashed=false`
-    );
-    const res = await driveGet(`/drive/v3/files?q=${q}&fields=files(id)`, signal);
-    let id;
-    if (res.files && res.files.length > 0) {
-        id = res.files[0].id;
-    } else {
-        const created = await drivePost('/drive/v3/files', {
-            name,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents : [parentId]
-        }, signal);
-        id = created.id;
-    }
-    folderCache.set(key, id);
-    return id;
+    // Return cached id or the already-in-flight promise — either way only one API call fires
+    if (folderCache.has(key)) return Promise.resolve(folderCache.get(key));
+
+    const promise = (async () => {
+        const q = encodeURIComponent(
+            `'${parentId}' in parents and name='${name}' ` +
+            `and mimeType='application/vnd.google-apps.folder' and trashed=false`
+        );
+        const res = await driveGet(`/drive/v3/files?q=${q}&fields=files(id)`, signal);
+        let id;
+        if (res.files && res.files.length > 0) {
+            id = res.files[0].id;
+        } else {
+            const created = await drivePost('/drive/v3/files', {
+                name,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents : [parentId]
+            }, signal);
+            id = created.id;
+        }
+        // Replace the promise with the resolved id so future calls skip the await
+        folderCache.set(key, id);
+        return id;
+    })();
+
+    // Store the promise immediately so concurrent callers await the same one
+    folderCache.set(key, promise);
+    return promise;
 }
 
 // Returns the yyyy/mm/dd subfolder ID under the root folder_id
@@ -445,19 +454,13 @@ async function getDayFolderId(signal) {
     const yyyy = String(now.getFullYear());
     const mm   = String(now.getMonth() + 1).padStart(2, '0');
     const dd   = String(now.getDate()).padStart(2, '0');
-    const path = `${yyyy}/${mm}/${dd}`;
-
-    if (folderCache.has(path)) return folderCache.get(path);
 
     const root    = PARAMS.folder_id;
     const yearId  = await getOrCreateFolder(root,   yyyy, signal);
     if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
     const monthId = await getOrCreateFolder(yearId, mm,   signal);
     if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
-    const dayId   = await getOrCreateFolder(monthId, dd,  signal);
-
-    folderCache.set(path, dayId);
-    return dayId;
+    return getOrCreateFolder(monthId, dd, signal);
 }
 
 // Upload file using multipart upload; calls onProgress(0..1)
@@ -532,7 +535,11 @@ async function makePublic(fileId) {
 // ═══════════════════════════════════════════════════════════
 async function addAppSheetRecord(driveFileId, uploadedName) {
     const { appsheet_key, app_id, product_id, table_name } = PARAMS;
-    if (!appsheet_key || !app_id) return;
+
+    if (!appsheet_key || !app_id) {
+        console.warn('[AppSheet] Missing appsheet_key or app_id — skipping record insert.', { appsheet_key, app_id });
+        return;
+    }
 
     const imageUrl = `https://drive.google.com/uc?id=${driveFileId}`;
 
@@ -544,22 +551,29 @@ async function addAppSheetRecord(driveFileId, uploadedName) {
         [COL.uploaded_at]: new Date().toISOString()
     };
 
-    const r = await fetch(
-        `https://api.appsheet.com/api/v2/apps/${app_id}/tables/${encodeURIComponent(table_name)}/Action`,
-        {
-            method : 'POST',
-            headers: {
-                'ApplicationAccessKey': appsheet_key,
-                'Content-Type'        : 'application/json'
-            },
-            body: JSON.stringify({
-                Action    : 'Add',
-                Properties: { Locale: 'en-US', Timezone: 'SE Asia Standard Time' },
-                Rows      : [row]
-            })
-        }
-    );
-    if (!r.ok) throw new Error(`AppSheet error ${r.status}: ${await r.text()}`);
+    const url  = `https://api.appsheet.com/api/v2/apps/${app_id}/tables/${encodeURIComponent(table_name)}/Action`;
+    const body = JSON.stringify({
+        Action    : 'Add',
+        Properties: { Locale: 'en-US', Timezone: 'SE Asia Standard Time' },
+        Rows      : [row]
+    });
+
+    console.log('[AppSheet] POST', url);
+    console.log('[AppSheet] Row:', row);
+
+    const r = await fetch(url, {
+        method : 'POST',
+        headers: {
+            'ApplicationAccessKey': appsheet_key,
+            'Content-Type'        : 'application/json'
+        },
+        body
+    });
+
+    const text = await r.text();
+    console.log('[AppSheet] Response', r.status, text);
+
+    if (!r.ok) throw new Error(`AppSheet error ${r.status}: ${text}`);
 }
 
 // ═══════════════════════════════════════════════════════════
