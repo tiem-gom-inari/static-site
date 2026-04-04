@@ -1,1 +1,761 @@
 
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload ảnh sản phẩm</title>
+    <script src="https://accounts.google.com/gsi/client" async></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────────── */
+        .header {
+            background: #fff;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.12);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 7px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #444;
+            white-space: nowrap;
+        }
+        .back-btn:hover { background: #f5f5f5; }
+
+        .header-info { flex: 1; min-width: 0; }
+        .header-title { font-size: 15px; font-weight: 700; }
+        .header-subtitle { font-size: 12px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ── Auth section ─────────────────────────── */
+        .auth-section {
+            background: #fff;
+            margin: 20px 16px;
+            border-radius: 14px;
+            padding: 32px 20px;
+            text-align: center;
+            box-shadow: 0 1px 6px rgba(0,0,0,.08);
+        }
+        .auth-section.hidden { display: none; }
+        .auth-icon { font-size: 48px; margin-bottom: 12px; }
+        .auth-desc { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.5; }
+
+        .google-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #4285f4;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 11px 22px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .google-btn:hover { background: #3367d6; }
+
+        /* ── Upload button ─────────────────────────── */
+        .upload-area { margin: 14px 16px 10px; display: none; }
+
+        .select-btn {
+            width: 100%;
+            background: #4285f4;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background .2s;
+        }
+        .select-btn:hover { background: #3367d6; }
+        .select-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+        /* ── Image grid ─────────────────────────────── */
+        .image-grid {
+            margin: 0 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 50px 20px;
+            color: #ccc;
+        }
+        .empty-state .empty-icon { font-size: 56px; margin-bottom: 10px; }
+        .empty-state p { font-size: 14px; }
+
+        /* ── Image card ──────────────────────────────── */
+        .image-card {
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,.08);
+            border: 2px solid transparent;
+            transition: border-color .25s;
+        }
+        .image-card img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            display: block;
+        }
+        .card-info { padding: 8px 8px 10px; }
+        .card-name {
+            font-size: 11px;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 6px;
+        }
+        .card-status-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .status-icon { font-size: 15px; flex-shrink: 0; }
+        .status-text { font-size: 11px; color: #777; flex: 1; }
+        .progress-bar { height: 3px; background: #e8e8e8; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #4285f4; border-radius: 2px; width: 0; transition: width .2s; }
+
+        /* card state colors */
+        .card-pending  { border-color: transparent; }
+        .card-uploading { border-color: #4285f4; }
+        .card-uploading .status-text { color: #4285f4; }
+        .card-success  { border-color: #34a853; }
+        .card-success  .status-text { color: #34a853; }
+        .card-success  .progress-fill { background: #34a853; }
+        .card-failed   { border-color: #ea4335; }
+        .card-failed   .status-text { color: #ea4335; }
+        .card-cancelled { border-color: #bbb; }
+        .card-cancelled .status-text { color: #aaa; }
+
+        /* ── Summary bar ─────────────────────────────── */
+        .summary-bar {
+            position: fixed;
+            bottom: 64px;
+            left: 0; right: 0;
+            background: rgba(30,30,30,.82);
+            backdrop-filter: blur(6px);
+            color: #fff;
+            padding: 7px 16px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .summary-bar.hidden { display: none; }
+
+        /* ── Action bar ─────────────────────────────── */
+        .action-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #fff;
+            padding: 10px 14px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,.1);
+        }
+        .action-bar.hidden { display: none; }
+
+        .cancel-btn {
+            flex: 1;
+            background: #ea4335;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .cancel-btn:hover { background: #c5221f; }
+        .cancel-btn:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
+
+        .back-action-btn {
+            flex: 1;
+            background: #f1f3f4;
+            color: #444;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .back-action-btn:hover { background: #e2e5e8; }
+
+        .bottom-spacer { height: 120px; }
+    </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────── -->
+<div class="header">
+    <button class="back-btn" onclick="goBack()">&#8592; Quay lại</button>
+    <div class="header-info">
+        <div class="header-title">Upload ảnh sản phẩm</div>
+        <div class="header-subtitle" id="headerSubtitle">Đang tải...</div>
+    </div>
+</div>
+
+<!-- ── Auth ─────────────────────────────────────────────── -->
+<div class="auth-section" id="authSection">
+    <div class="auth-icon">🔑</div>
+    <div class="auth-desc">
+        Đăng nhập Google để cấp quyền tải ảnh lên Google Drive
+    </div>
+    <button class="google-btn" onclick="signIn()">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#fff"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff"/>
+        </svg>
+        Đăng nhập với Google
+    </button>
+</div>
+
+<!-- ── Select images button ──────────────────────────────── -->
+<div class="upload-area" id="uploadArea">
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFilesSelected(this.files)">
+    <button class="select-btn" id="selectBtn" onclick="document.getElementById('fileInput').click()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Chọn ảnh để tải lên
+    </button>
+</div>
+
+<!-- ── Image grid ────────────────────────────────────────── -->
+<div class="image-grid" id="imageGrid">
+    <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🖼️</div>
+        <p>Chưa có ảnh nào được chọn</p>
+    </div>
+</div>
+
+<div class="bottom-spacer"></div>
+
+<!-- ── Summary bar ───────────────────────────────────────── -->
+<div class="summary-bar hidden" id="summaryBar">
+    <span id="summaryCount">0 ảnh</span>
+    <span id="summaryStats">✅ 0 &nbsp;❌ 0 &nbsp;⏳ 0 &nbsp;🚫 0</span>
+</div>
+
+<!-- ── Action bar ────────────────────────────────────────── -->
+<div class="action-bar hidden" id="actionBar">
+    <button class="cancel-btn" id="cancelBtn" onclick="cancelAll()">⛔ Hủy tất cả</button>
+    <button class="back-action-btn" onclick="goBack()">&#8592; Về ứng dụng</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG  — fill in your Google OAuth Client ID
+//            Other settings come from URL params
+// ═══════════════════════════════════════════════════════════
+const GOOGLE_CLIENT_ID  = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+const MAX_CONCURRENT    = 3;   // parallel uploads
+
+// AppSheet table column names — adjust to match your schema
+const COL = {
+    product_id : 'ProductID',
+    image_url  : 'ImageURL',
+    file_name  : 'FileName',
+    drive_id   : 'DriveFileID',
+    uploaded_at: 'UploadedAt'
+};
+
+// ═══════════════════════════════════════════════════════════
+//  PARSE URL PARAMS
+//  Expected: ?appsheet_key=...&app_id=...&product_id=...
+//            &folder_id=...&table_name=...&back_url=...
+// ═══════════════════════════════════════════════════════════
+function parseUrlParams() {
+    const url = window.location.href;
+    const qi  = url.indexOf('?');
+    if (qi === -1) return {};
+
+    const getParam = (name) => {
+        const re = new RegExp(`[?&]${name}=([^&]*)`);
+        const m  = url.match(re);
+        if (!m) return '';
+        try { return decodeURIComponent(m[1]); } catch { return m[1]; }
+    };
+
+    return {
+        appsheet_key: getParam('appsheet_key'),
+        app_id      : getParam('app_id'),
+        product_id  : getParam('product_id'),
+        folder_id   : getParam('folder_id'),   // Google Drive root folder ID
+        table_name  : getParam('table_name') || 'ProductImages',
+        back_url    : getParam('back_url')
+    };
+}
+
+const PARAMS = parseUrlParams();
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let accessToken  = null;
+let tokenClient  = null;
+let allItems     = [];        // all upload items ever added
+let uploadQueue  = [];        // items yet to start
+let activeCount  = 0;
+let folderCache  = new Map(); // path → Drive folder id
+let nextId       = 0;
+let globalCancel = false;
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+    const sub = document.getElementById('headerSubtitle');
+    sub.textContent = PARAMS.product_id
+        ? `Sản phẩm: ${PARAMS.product_id}`
+        : 'Không có thông tin sản phẩm';
+
+    // Wait for Google Identity Services to load
+    const waitGsi = setInterval(() => {
+        if (typeof google !== 'undefined' && google.accounts) {
+            clearInterval(waitGsi);
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope    : 'https://www.googleapis.com/auth/drive.file',
+                callback : onTokenReceived
+            });
+        }
+    }, 100);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  GOOGLE AUTH
+// ═══════════════════════════════════════════════════════════
+function signIn() {
+    if (!tokenClient) { alert('Google Sign-In chưa sẵn sàng, thử lại sau giây lát.'); return; }
+    tokenClient.requestAccessToken();
+}
+
+function onTokenReceived(resp) {
+    if (resp.error) { alert('Đăng nhập thất bại: ' + resp.error); return; }
+    accessToken = resp.access_token;
+    document.getElementById('authSection').classList.add('hidden');
+    document.getElementById('uploadArea').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GOOGLE DRIVE HELPERS
+// ═══════════════════════════════════════════════════════════
+async function driveGet(path, signal) {
+    const r = await fetch(`https://www.googleapis.com${path}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal
+    });
+    if (!r.ok) throw new Error(`Drive error ${r.status}: ${await r.text()}`);
+    return r.json();
+}
+
+async function drivePost(path, body, signal) {
+    const r = await fetch(`https://www.googleapis.com${path}`, {
+        method : 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body   : JSON.stringify(body),
+        signal
+    });
+    if (!r.ok) throw new Error(`Drive error ${r.status}: ${await r.text()}`);
+    return r.json();
+}
+
+async function getOrCreateFolder(parentId, name, signal) {
+    const key = `${parentId}::${name}`;
+    if (folderCache.has(key)) return folderCache.get(key);
+
+    const q = encodeURIComponent(
+        `'${parentId}' in parents and name='${name}' ` +
+        `and mimeType='application/vnd.google-apps.folder' and trashed=false`
+    );
+    const res = await driveGet(`/drive/v3/files?q=${q}&fields=files(id)`, signal);
+    let id;
+    if (res.files && res.files.length > 0) {
+        id = res.files[0].id;
+    } else {
+        const created = await drivePost('/drive/v3/files', {
+            name,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents : [parentId]
+        }, signal);
+        id = created.id;
+    }
+    folderCache.set(key, id);
+    return id;
+}
+
+// Returns the yyyy/mm/dd subfolder ID under the root folder_id
+async function getDayFolderId(signal) {
+    const now  = new Date();
+    const yyyy = String(now.getFullYear());
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const dd   = String(now.getDate()).padStart(2, '0');
+    const path = `${yyyy}/${mm}/${dd}`;
+
+    if (folderCache.has(path)) return folderCache.get(path);
+
+    const root    = PARAMS.folder_id;
+    const yearId  = await getOrCreateFolder(root,   yyyy, signal);
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+    const monthId = await getOrCreateFolder(yearId, mm,   signal);
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+    const dayId   = await getOrCreateFolder(monthId, dd,  signal);
+
+    folderCache.set(path, dayId);
+    return dayId;
+}
+
+// Upload file using multipart upload; calls onProgress(0..1)
+function uploadToDrive(file, uploadedName, parentId, signal, onProgress) {
+    return new Promise((resolve, reject) => {
+        const metadata = JSON.stringify({ name: uploadedName, parents: [parentId] });
+        const boundary = 'upload_boundary_x7z';
+        const delim    = `\r\n--${boundary}\r\n`;
+        const close    = `\r\n--${boundary}--`;
+
+        const enc        = new TextEncoder();
+        const metaPart   = enc.encode(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}`);
+        const fileHeader = enc.encode(`${delim}Content-Type: ${file.type || 'image/jpeg'}\r\n\r\n`);
+        const closePart  = enc.encode(close);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const fileBytes = new Uint8Array(e.target.result);
+            const body = new Uint8Array(
+                metaPart.byteLength + fileHeader.byteLength + fileBytes.byteLength + closePart.byteLength
+            );
+            let off = 0;
+            body.set(metaPart,   off); off += metaPart.byteLength;
+            body.set(fileHeader, off); off += fileHeader.byteLength;
+            body.set(fileBytes,  off); off += fileBytes.byteLength;
+            body.set(closePart,  off);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST',
+                'https://www.googleapis.com/upload/drive/v3/files' +
+                '?uploadType=multipart&fields=id,webViewLink,webContentLink'
+            );
+            xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            xhr.setRequestHeader('Content-Type', `multipart/related; boundary=${boundary}`);
+
+            xhr.upload.onprogress = (ev) => {
+                if (ev.lengthComputable) onProgress(ev.loaded / ev.total);
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(JSON.parse(xhr.responseText));
+                } else {
+                    reject(new Error(`Upload thất bại: ${xhr.status}`));
+                }
+            };
+            xhr.onerror   = () => reject(new Error('Lỗi mạng'));
+            xhr.onabort   = () => reject(new DOMException('Cancelled', 'AbortError'));
+            if (signal) signal.addEventListener('abort', () => xhr.abort());
+            xhr.send(body);
+        };
+        reader.onerror = () => reject(new Error('Không đọc được file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Make the uploaded file readable by anyone (so AppSheet can show the image)
+async function makePublic(fileId) {
+    try {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+            method : 'POST',
+            headers: {
+                Authorization : `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ role: 'reader', type: 'anyone' })
+        });
+    } catch (_) { /* non-critical */ }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  APPSHEET API
+// ═══════════════════════════════════════════════════════════
+async function addAppSheetRecord(driveFileId, uploadedName) {
+    const { appsheet_key, app_id, product_id, table_name } = PARAMS;
+    if (!appsheet_key || !app_id) return;
+
+    const imageUrl = `https://drive.google.com/uc?id=${driveFileId}`;
+
+    const row = {
+        [COL.product_id] : product_id,
+        [COL.image_url]  : imageUrl,
+        [COL.file_name]  : uploadedName,
+        [COL.drive_id]   : driveFileId,
+        [COL.uploaded_at]: new Date().toISOString()
+    };
+
+    const r = await fetch(
+        `https://api.appsheet.com/api/v2/apps/${app_id}/tables/${encodeURIComponent(table_name)}/Action`,
+        {
+            method : 'POST',
+            headers: {
+                'ApplicationAccessKey': appsheet_key,
+                'Content-Type'        : 'application/json'
+            },
+            body: JSON.stringify({
+                Action    : 'Add',
+                Properties: { Locale: 'en-US', Timezone: 'SE Asia Standard Time' },
+                Rows      : [row]
+            })
+        }
+    );
+    if (!r.ok) throw new Error(`AppSheet error ${r.status}: ${await r.text()}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FILE SELECTION
+// ═══════════════════════════════════════════════════════════
+function handleFilesSelected(files) {
+    if (!files || files.length === 0) return;
+    globalCancel = false;
+    document.getElementById('emptyState')?.remove();
+    document.getElementById('actionBar').classList.remove('hidden');
+    document.getElementById('summaryBar').classList.remove('hidden');
+    document.getElementById('cancelBtn').disabled = false;
+
+    Array.from(files).forEach(file => {
+        const item = {
+            id        : nextId++,
+            file,
+            status    : 'pending',   // pending | uploading | success | failed | cancelled
+            controller: null,
+            element   : null
+        };
+        allItems.push(item);
+        uploadQueue.push(item);
+        renderCard(item);
+    });
+
+    document.getElementById('fileInput').value = ''; // reset so same files can be re-added
+    pumpQueue();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UPLOAD QUEUE
+// ═══════════════════════════════════════════════════════════
+function pumpQueue() {
+    while (uploadQueue.length > 0 && activeCount < MAX_CONCURRENT && !globalCancel) {
+        const item = uploadQueue.shift();
+        if (item.status === 'cancelled') { pumpQueue(); continue; }
+        activeCount++;
+        runUpload(item).finally(() => { activeCount--; pumpQueue(); updateSummary(); });
+    }
+    updateSummary();
+}
+
+function buildUploadedName(file) {
+    const now  = new Date();
+    const p    = n => String(n).padStart(2, '0');
+    const ts   = `${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}` +
+                 `_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+    const dot  = file.name.lastIndexOf('.');
+    const base = dot > -1 ? file.name.slice(0, dot) : file.name;
+    const ext  = dot > -1 ? file.name.slice(dot)    : '';
+    return `${base}-${ts}${ext}`;
+}
+
+async function runUpload(item) {
+    if (globalCancel || item.status === 'cancelled') { setStatus(item, 'cancelled'); return; }
+
+    item.controller = new AbortController();
+    const { signal } = item.controller;
+
+    setStatus(item, 'uploading');
+    try {
+        // 1. Resolve yyyy/mm/dd folder in Drive
+        const dayFolderId  = await getDayFolderId(signal);
+        const uploadedName = buildUploadedName(item.file);
+
+        // 2. Upload to Drive
+        const driveFile = await uploadToDrive(
+            item.file, uploadedName, dayFolderId, signal,
+            pct => setProgress(item, pct)
+        );
+
+        // 3. Make file publicly accessible
+        await makePublic(driveFile.id);
+
+        // 4. Add record to AppSheet
+        await addAppSheetRecord(driveFile.id, uploadedName);
+
+        setStatus(item, 'success');
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            setStatus(item, 'cancelled');
+        } else {
+            console.error('[upload]', e);
+            setStatus(item, 'failed', e.message);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI — cards
+// ═══════════════════════════════════════════════════════════
+const ICON = {
+    pending  : '⏳',
+    uploading: '⬆️',
+    success  : '✅',
+    failed   : '❌',
+    cancelled: '🚫'
+};
+const LABEL = {
+    pending  : 'Chờ tải lên',
+    uploading: 'Đang tải...',
+    success  : 'Thành công',
+    failed   : 'Thất bại',
+    cancelled: 'Đã hủy'
+};
+
+function renderCard(item) {
+    const card = document.createElement('div');
+    card.className = 'image-card card-pending';
+    card.id = `card-${item.id}`;
+
+    const thumb = document.createElement('img');
+    const objUrl = URL.createObjectURL(item.file);
+    thumb.src = objUrl;
+    thumb.addEventListener('load', () => URL.revokeObjectURL(objUrl), { once: true });
+
+    const info = document.createElement('div');
+    info.className = 'card-info';
+
+    const name = document.createElement('div');
+    name.className = 'card-name';
+    name.title = item.file.name;
+    name.textContent = item.file.name;
+
+    const row = document.createElement('div');
+    row.className = 'card-status-row';
+
+    const icon = document.createElement('span');
+    icon.className = 'status-icon';
+    icon.id = `icon-${item.id}`;
+    icon.textContent = ICON.pending;
+
+    const text = document.createElement('span');
+    text.className = 'status-text';
+    text.id = `text-${item.id}`;
+    text.textContent = LABEL.pending;
+
+    row.append(icon, text);
+
+    const bar = document.createElement('div');
+    bar.className = 'progress-bar';
+    const fill = document.createElement('div');
+    fill.className = 'progress-fill';
+    fill.id = `prog-${item.id}`;
+    bar.appendChild(fill);
+
+    info.append(name, row, bar);
+    card.append(thumb, info);
+    document.getElementById('imageGrid').appendChild(card);
+    item.element = card;
+}
+
+function setStatus(item, status, detail) {
+    item.status = status;
+    const card = document.getElementById(`card-${item.id}`);
+    if (!card) return;
+    card.className = `image-card card-${status}`;
+    document.getElementById(`icon-${item.id}`).textContent = ICON[status];
+    const label = detail
+        ? `${LABEL[status]}: ${String(detail).substring(0, 45)}`
+        : LABEL[status];
+    document.getElementById(`text-${item.id}`).textContent = label;
+    const prog = document.getElementById(`prog-${item.id}`);
+    prog.style.width = status === 'success' ? '100%'
+                     : status === 'uploading' ? prog.style.width
+                     : '0%';
+}
+
+function setProgress(item, pct) {
+    document.getElementById(`prog-${item.id}`).style.width = `${Math.round(pct * 100)}%`;
+    document.getElementById(`text-${item.id}`).textContent = `Đang tải... ${Math.round(pct * 100)}%`;
+}
+
+function updateSummary() {
+    const grid      = document.getElementById('imageGrid');
+    const success   = grid.querySelectorAll('.card-success').length;
+    const failed    = grid.querySelectorAll('.card-failed').length;
+    const cancelled = grid.querySelectorAll('.card-cancelled').length;
+    const pending   = grid.querySelectorAll('.card-pending, .card-uploading').length;
+    const total     = allItems.length;
+
+    document.getElementById('summaryCount').textContent = `${total} ảnh`;
+    document.getElementById('summaryStats').textContent =
+        `✅ ${success}  ❌ ${failed}  ⏳ ${pending}  🚫 ${cancelled}`;
+
+    document.getElementById('cancelBtn').disabled = pending === 0;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════════════════
+function cancelAll() {
+    globalCancel = true;
+    // Cancel queued items
+    uploadQueue.forEach(item => setStatus(item, 'cancelled'));
+    uploadQueue.length = 0;
+    // Abort in-progress items
+    allItems.forEach(item => {
+        if (item.status === 'uploading' && item.controller) {
+            item.controller.abort();
+        }
+    });
+    document.getElementById('cancelBtn').disabled = true;
+    updateSummary();
+}
+
+function goBack() {
+    if (PARAMS.back_url) {
+        window.location.href = PARAMS.back_url;
+    } else if (document.referrer) {
+        window.history.back();
+    } else {
+        window.close();
+    }
+}
+</script>
+</body>
+</html>
