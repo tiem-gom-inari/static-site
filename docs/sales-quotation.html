@@ -319,7 +319,7 @@
             const storeUrlIndex = fullUrl.indexOf('store_url=');
             if (storeUrlIndex !== -1) {
                 const afterStoreUrl = fullUrl.substring(storeUrlIndex + 10); // 10 = 'store_url='.length
-                const endMatch = afterStoreUrl.match(/&(store_name|store_title|address|phone|bank_info|sub_total|grand_total|items_info|items_image)=/);
+                const endMatch = afterStoreUrl.match(/&(qr_code|store_name|store_title|store_logo_width|address|phone|bank_info|sub_total|grand_total|items_info|items_image)=/);
                 let rawValue = endMatch ? afterStoreUrl.substring(0, endMatch.index) : afterStoreUrl;
 
                 storeUrlValue = decodeURIComponent(rawValue);
@@ -327,6 +327,23 @@
                 if (storeUrlValue.includes('%')) {
                     try {
                         storeUrlValue = decodeURIComponent(storeUrlValue);
+                    } catch (e) {}
+                }
+            }
+
+            // Special handling for qr_code which may contain & characters (AppSheet image URLs)
+            let qrCodeValue = '';
+            const qrCodeIndex = fullUrl.indexOf('qr_code=');
+            if (qrCodeIndex !== -1) {
+                const afterQrCode = fullUrl.substring(qrCodeIndex + 8); // 8 = 'qr_code='.length
+                const endMatch = afterQrCode.match(/&(store_logo_width|store_name|store_title|address|phone|bank_info|sub_total|grand_total|items_info|items_image)=/);
+                let rawValue = endMatch ? afterQrCode.substring(0, endMatch.index) : afterQrCode;
+
+                qrCodeValue = decodeURIComponent(rawValue);
+
+                if (qrCodeValue.includes('%')) {
+                    try {
+                        qrCodeValue = decodeURIComponent(qrCodeValue);
                     } catch (e) {}
                 }
             }
@@ -343,7 +360,7 @@
                 store_name: getParam('store_name'),
                 store_title: getParam('store_title'),
                 store_logo_width: getParam('store_logo_width'),
-                qr_code: getParam('qr_code')
+                qr_code: qrCodeValue
             };
         }
 
