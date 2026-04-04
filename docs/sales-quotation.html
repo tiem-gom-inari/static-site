@@ -173,6 +173,13 @@
             padding: 15px;
             background-color: #e8f5e9; /* light green background */
         }
+        .bank-qr-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .bank-qr-row > div { flex: 1; }
+
         .stt-col { width: 8%; }
         .image-col { width: 20%; }
         .quantity-col { width: 12%; }
@@ -488,9 +495,25 @@
             document.getElementById('bank_info').textContent = params.bank_info;
 
             if (params.qr_code) {
-                const qrImg = document.getElementById('qr_code');
-                qrImg.src = params.qr_code;
-                qrImg.closest('.qr-section').style.display = 'block';
+                try {
+                    const response = await fetch(params.qr_code, {
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        credentials: 'omit'
+                    });
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const qrImg = document.getElementById('qr_code');
+                            qrImg.src = e.target.result;
+                            document.querySelector('.qr-section').style.display = 'block';
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch QR code:', e);
+                }
             }
 
             // Parse and populate items
@@ -828,9 +851,11 @@
         <div class="info-section">
             <div><span class="info-label">Địa chỉ:</span> <span id="address"></span></div>
             <div><span class="info-label">Số điện thoại:</span> <span id="phone"></span></div>
-            <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
-            <div class="qr-section" style="display:none; margin-top:10px; text-align:center;">
-                <img id="qr_code" alt="QR thanh toán" style="max-width:180px; width:100%; border-radius:8px;">
+            <div class="bank-qr-row">
+                <div><span class="info-label">Thông tin tài khoản:</span> <span id="bank_info"></span></div>
+                <div class="qr-section" style="display:none;">
+                    <img id="qr_code" alt="QR thanh toán" style="width:120px; height:120px; object-fit:contain; border-radius:8px;">
+                </div>
             </div>
         </div>
 
