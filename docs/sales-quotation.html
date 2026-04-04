@@ -311,7 +311,10 @@
                 sub_total: getParam('sub_total'),
                 grand_total: getParam('grand_total'),
                 items_info: getParam('items_info'),
-                items_image: itemsImageValue
+                items_image: itemsImageValue,
+                store_url: getParam('store_url'),
+                store_name: getParam('store_name'),
+                store_title: getParam('store_title')
             };
         }
 
@@ -429,6 +432,13 @@
         // Populate the page with data
         async function populateData() {
             const params = getUrlParams();
+
+            // Update store branding if all three params are present and non-empty
+            if (params.store_url && params.store_name && params.store_title) {
+                document.querySelector('.logo').src = params.store_url;
+                document.querySelector('.store-name').textContent = params.store_name;
+                document.title = params.store_title;
+            }
 
             // Update contact information
             document.getElementById('address').textContent = params.address;
