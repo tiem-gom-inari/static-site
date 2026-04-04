@@ -259,7 +259,10 @@
                     sub_total: '',
                     grand_total: '',
                     items_info: '',
-                    items_image: ''
+                    items_image: '',
+                    store_url: '',
+                    store_name: '',
+                    store_title: ''
                 };
             }
 
@@ -304,6 +307,23 @@
                 }
             }
 
+            // Special handling for store_url which may contain & characters (AppSheet image URLs)
+            let storeUrlValue = '';
+            const storeUrlIndex = fullUrl.indexOf('store_url=');
+            if (storeUrlIndex !== -1) {
+                const afterStoreUrl = fullUrl.substring(storeUrlIndex + 10); // 10 = 'store_url='.length
+                const endMatch = afterStoreUrl.match(/&(store_name|store_title|address|phone|bank_info|sub_total|grand_total|items_info|items_image)=/);
+                let rawValue = endMatch ? afterStoreUrl.substring(0, endMatch.index) : afterStoreUrl;
+
+                storeUrlValue = decodeURIComponent(rawValue);
+
+                if (storeUrlValue.includes('%')) {
+                    try {
+                        storeUrlValue = decodeURIComponent(storeUrlValue);
+                    } catch (e) {}
+                }
+            }
+
             return {
                 address: getParam('address'),
                 phone: getParam('phone'),
@@ -312,7 +332,7 @@
                 grand_total: getParam('grand_total'),
                 items_info: getParam('items_info'),
                 items_image: itemsImageValue,
-                store_url: getParam('store_url'),
+                store_url: storeUrlValue,
                 store_name: getParam('store_name'),
                 store_title: getParam('store_title')
             };
@@ -435,9 +455,28 @@
 
             // Update store branding if all three params are present and non-empty
             if (params.store_url && params.store_name && params.store_title) {
-                document.querySelector('.logo').src = params.store_url;
                 document.querySelector('.store-name').textContent = params.store_name;
                 document.title = params.store_title;
+                // Fetch logo via CORS to avoid tainted canvas (AppSheet URLs contain & chars)
+                try {
+                    const response = await fetch(params.store_url, {
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        credentials: 'omit'
+                    });
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const logo = document.querySelector('.logo');
+                            logo.src = e.target.result;
+                            logo.alt = params.store_name;
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch store logo:', e);
+                }
             }
 
             // Update contact information
